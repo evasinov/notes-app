@@ -1,0 +1,13 @@
+{
+  "name": "smart-notes-backend",
+  "version": "1.0.0",
+  "description": "Модульный бэкенд для системы умных заметок",
+  "type": "module",
+  "scripts": {
+    "dev": "node --watch src/core/server.js",
+    "start": "node src/core/server.js"
+  },
+  "dependencies": {
+    "fastify": "^4.28.0"
+  }
+}
