@@ -2,6 +2,7 @@ import Fastify from 'fastify';
 import EventBus from './events.js';
 import db from './db.js';
 import notesModule from '../modules/notes/index.js';
+import searchModule from '../modules/search/index.js';
 
 const app = Fastify({ logger: true });
 const PORT = 3333;
@@ -17,6 +18,8 @@ async function loadModules() {
   console.log('[Core] Подключаем модули...');
   app.register(notesModule);
   console.log('[Core] Модуль "Заметки" подключен');
+  app.register(searchModule);
+  console.log('[Core] Модуль "Поиск" подключен');
 }
 
 async function start() {

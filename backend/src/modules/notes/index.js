@@ -45,8 +45,8 @@ function notesModule(app, opts, done) {
 
   // Удалить заметку по ID
   app.delete('/notes/:id', async (request, reply) => {
-    const { id } = request.params;
-    await db.query('DELETE FROM notes WHERE id = $1', [id]);
+    await db.query('DELETE FROM notes WHERE id = $1', [request.params.id]);
+    EventBus.emit('note:deleted', request.params.id);
     return { success: true };
   });
 

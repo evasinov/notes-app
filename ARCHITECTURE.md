@@ -3,11 +3,13 @@
 Документ для разработчиков и LLM-агентов.
 
 ## 1. Обзор
+
 Проект разделён на Backend (API) и Frontend (React SPA).
 Frontend запрашивает данные через HTTP у Backend.
-Backend хранит данные в PostgreSQL.
+Backend хранит данные в PostgreSQL и синхронизирует поиск в Typesense.
 
 ## 2. Backend (Node.js + Fastify)
+
 Путь: backend/
 
 Ядро (Core):
@@ -29,12 +31,23 @@ Backend хранит данные в PostgreSQL.
 
 Текущие модули:
 - notes: GET /notes, POST /notes, DELETE /notes/:id
+- search: GET /search?q=текст
 
-## 3. Frontend (React + Vite)
+## 3. Поиск (Typesense)
+
+Модуль search слушает события EventBus:
+- note:created -> индексирует заметку в Typesense
+- note:deleted -> удаляет заметку из индекса
+
+Typesense коллекция: notes
+Поля: title, content, tags, created_at
+
+## 4. Frontend (React + Vite)
+
 Путь: frontend/
 
 Файлы:
-- src/App.jsx — главный компонент
+- src/App.jsx — главный компонент (шапка, поиск, список, модалка, сортировка)
 - src/main.jsx — точка входа React
 - src/styles/global.css — все стили
 
@@ -42,7 +55,8 @@ API Proxy:
 Vite проксирует /api/* на http://localhost:3333/*
 Фронтенд пишет fetch('/api/notes'), реально запрос идёт на http://localhost:3333/notes
 
-## 4. База данных
+## 5. База данных
+
 Таблица notes:
 - id SERIAL PRIMARY KEY
 - title TEXT NOT NULL
@@ -52,20 +66,32 @@ Vite проксирует /api/* на http://localhost:3333/*
 
 Миграции выполняются при старте (db.initSchema())
 
-## 5. Git Flow
+## 6. Дизайн
+
+Стиль: Dark Theme + Glassmorphism
+Фон: Black 85% (#1a1a1a)
+Акцент: Pantone 166C (#E35205)
+
+## 7. Git Flow
+
 Формат коммитов:
 - Feat: <что добавлено>
 - Fix: <что исправлено>
 - Refactor: <что переделано>
 - Docs: <что задокументировано>
 
-## 6. План развития
-- [ ] Подключить Typesense (умный поиск)
+## 8. План развития
+
+- [x] Модульная архитектура
+- [x] Парсер тегов
+- [x] Поиск (Typesense)
 - [ ] Авторизация (JWT)
 - [ ] Шаринг заметок коллегам
 - [ ] Комментарии к заметкам
+- [ ] Версионирование изменений
 
-## 7. LLM-инструкция
+## 9. LLM-инструкция
+
 Если ты (ИИ) работаешь с этим проектом:
 1. Сначала прочитай этот файл
 2. Не меняй core/ без необходимости

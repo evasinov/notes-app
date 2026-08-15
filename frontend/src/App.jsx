@@ -5,8 +5,9 @@ function App() {
   const [selectedNote, setSelectedNote] = useState(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [sortBy, setSortBy] = useState('date_desc');
+  const [searchQuery, setSearchQuery] = useState('');
+  const [searchResults, setSearchResults] = useState(null);
   
-  // Состояния для формы
   const [title, setTitle] = useState('');
   const [content, setContent] = useState('');
 
@@ -25,6 +26,25 @@ function App() {
   useEffect(() => {
     loadNotes();
   }, [loadNotes]);
+
+  // Поиск
+  const handleSearch = async (e) => {
+    const q = e.target.value;
+    setSearchQuery(q);
+    
+    if (q.length === 0) {
+      setSearchResults(null);
+      return;
+    }
+
+    try {
+      const res = await fetch(`${API_BASE}/search?q=${encodeURIComponent(q)}`);
+      const json = await res.json();
+      setSearchResults(json.data);
+    } catch (err) {
+      console.error('Ошибка поиска:', err);
+    }
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -47,7 +67,9 @@ function App() {
     loadNotes();
   };
 
-  const sortedNotes = [...notes].sort((a, b) => {
+  const displayedNotes = searchResults !== null ? searchResults : notes;
+
+  const sortedNotes = [...displayedNotes].sort((a, b) => {
     if (sortBy === 'date_asc') return new Date(a.created_at) - new Date(b.created_at);
     if (sortBy === 'title_asc') return a.title.localeCompare(b.title, 'ru');
     return new Date(b.created_at) - new Date(a.created_at);
@@ -55,13 +77,22 @@ function App() {
 
   return (
     <div className="app-shell">
-      {/* ШАПКА */}
       <header className="app-header">
         <h1 className="app-title">Smart Notes</h1>
         <button className="btn-primary" onClick={() => setIsModalOpen(true)}>+ Добавить</button>
       </header>
 
-      {/* ПАНЕЛЬ СОРТИРОВКИ */}
+      {/* ПОИСК */}
+      <div className="search-bar">
+        <input
+          type="text"
+          className="search-input"
+          placeholder="Поиск по заметкам, тегам, контексту..."
+          value={searchQuery}
+          onChange={handleSearch}
+        />
+      </div>
+
       <div className="sort-bar">
         <span className="sort-label">Сортировка:</span>
         <button className={sortBy === 'date_desc' ? 'sort-btn active' : 'sort-btn'} onClick={() => setSortBy('date_desc')}>Сначала новые</button>
@@ -69,12 +100,12 @@ function App() {
         <button className={sortBy === 'title_asc' ? 'sort-btn active' : 'sort-btn'} onClick={() => setSortBy('title_asc')}>По алфавиту</button>
       </div>
 
-      {/* ОСНОВНОЙ КОНТЕНТ: Слева список, справа превью */}
       <div className="main-layout">
-        {/* ЛЕВАЯ КОЛОНКА (Список заметок) */}
         <div className="notes-list">
           {sortedNotes.length === 0 ? (
-            <div className="empty-state">Нет заметок. Нажми "+ Добавить"</div>
+            <div className="empty-state">
+              {searchQuery ? 'Ничего не найдено' : 'Нет заметок. Нажми "+ Добавить"'}
+            </div>
           ) : (
             sortedNotes.map(note => (
               <div 
@@ -96,7 +127,6 @@ function App() {
           )}
         </div>
 
-        {/* ПРАВАЯ КОЛОНКА (Полный просмотр) */}
         <div className="note-detail">
           {selectedNote ? (
             <>
@@ -120,7 +150,6 @@ function App() {
         </div>
       </div>
 
-      {/* МОДАЛЬНОЕ ОКНО ДОБАВЛЕНИЯ */}
       {isModalOpen && (
         <div className="modal-overlay" onClick={() => setIsModalOpen(false)}>
           <div className="modal" onClick={(e) => e.stopPropagation()}>
