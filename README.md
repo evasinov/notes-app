@@ -1,23 +1,28 @@
 # Smart Notes System
 
-Веб-приложение для быстрого создания и поиска заметок.
+Многопользовательское веб-приложение для заметок.
 
-Версия: 0.3.0
-Стек: Node.js, Fastify, PostgreSQL, React, Vite, Typesense
+Версия: 0.5.0
 
-Особенности:
-- Умный парсер тегов (#тег прямо в тексте)
-- Сортировка (по дате, алфавиту)
-- Умный поиск (по контенту, тегам, теме)
-- Современный UI (Black 85% + Pantone 166C)
-- Модульная архитектура (лёгкое добавление фич)
+## Возможности
+- Авторизация (JWT)
+- CRUD заметок
+- WYSIWYG-редактор (TipTap)
+- Теги (#тег) с облаком и фильтрацией
+- Полнотекстовый поиск (Typesense)
+- Сортировка
+- Тёмная тема (Black 85% + Pantone 166C)
 
-Быстрый старт:
-1. Backend: cd backend && npm install && npm start
-2. Frontend: cd frontend && npm install && npm run dev
-3. Инфраструктура: docker compose up -d
+## Стек
+- Backend: Node.js, Fastify, PostgreSQL
+- Frontend: React, Vite, TipTap
+- Search: Typesense
+- Auth: JWT
 
-API: http://localhost:3333
-Web: http://localhost:5173
+## Быстрый старт
+1. docker compose up -d
+2. cd backend && npm start
+3. cd frontend && npm run dev
 
-Документация: ARCHITECTURE.md
+## Документация
+ARCHITECTURE.md - полная документация
