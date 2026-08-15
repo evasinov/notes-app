@@ -1,0 +1,168 @@
+:root {
+  /* Фон и поверхности */
+  --bg-primary: #1a1a1a;      /* Black 85% */
+  --bg-secondary: #242424;    /* Чуть светлее для панелей */
+  --glass-bg: rgba(255, 255, 255, 0.03); /* Полупрозрачная подложка карточек */
+  --glass-border: rgba(255, 255, 255, 0.08);
+
+  /* Типографика */
+  --text-primary: #f5f5f5;    /* Почти белый */
+  --text-secondary: #a3a3a3;  /* Приглушенный серый */
+
+  /* Акцент и семантика */
+  --accent: #E35205;          /* Pantone 166 C - главный цвет */
+  --accent-hover: #ff6a1a;    /* Светлее при наведении */
+  --danger: #ff4d4d;
+  --success: #4ade80;
+
+  --radius: 16px;
+}
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  background: linear-gradient(145deg, #1a1a1a 0%, #0d0d0d 100%); /* Black 85% */
+  min-height: 100vh;
+  color: var(--text-primary);
+  padding: 20px;
+}
+
+#root {
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+/* ==== Quick Add Panel ==== */
+.quick-add {
+  background: var(--glass-bg);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius);
+  padding: 24px;
+  margin-bottom: 32px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+}
+
+.quick-add input,
+.quick-add textarea {
+  width: 100%;
+  background: rgba(0, 0, 0, 0.4);
+  border: 1px solid var(--glass-border);
+  border-radius: 12px;
+  padding: 14px 16px;
+  color: var(--text-primary);
+  font-size: 16px;
+  margin-bottom: 12px;
+  outline: none;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.quick-add input:focus,
+.quick-add textarea:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px rgba(227, 82, 5, 0.2); /* Ореол в цвет Pantone */
+}
+
+.quick-add input::placeholder,
+.quick-add textarea::placeholder {
+  color: #666;
+}
+
+/* Кнопка */
+.btn-primary {
+  background: var(--accent);
+  color: #ffffff;
+  border: none;
+  border-radius: 12px;
+  padding: 14px 24px;
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: transform 0.1s ease, box-shadow 0.2s ease, background 0.2s ease;
+}
+
+.btn-primary:hover {
+  background: var(--accent-hover);
+  transform: translateY(-2px);
+  box-shadow: 0 8px 20px rgba(227, 82, 5, 0.4);
+}
+
+/* ==== Notes Feed ==== */
+.notes-feed {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.note-card {
+  background: var(--glass-bg);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius);
+  padding: 20px;
+  transition: transform 0.2s ease, background 0.2s ease, border-color 0.2s ease;
+  border-left: 4px solid var(--accent); /* Яркая полоска слева */
+}
+
+.note-card:hover {
+  background: rgba(255, 255, 255, 0.05);
+  border-color: rgba(255, 255, 255, 0.15);
+  transform: translateY(-4px);
+}
+
+.note-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+}
+
+.note-header h3 {
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.note-date {
+  font-size: 13px;
+  color: var(--text-secondary);
+}
+
+.note-card p {
+  color: var(--text-secondary);
+  line-height: 1.6;
+  margin-bottom: 12px;
+}
+
+/* Теги */
+.note-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.tag {
+  background: rgba(227, 82, 5, 0.15); /* Полупрозрачный Pantone */
+  color: var(--accent);
+  padding: 4px 12px;
+  border-radius: 20px;
+  font-size: 13px;
+  font-weight: 500;
+  border: 1px solid rgba(227, 82, 5, 0.3);
+}
+
+/* Пустое состояние */
+.empty-state {
+  text-align: center;
+  padding: 60px 20px;
+  color: var(--text-secondary);
+  border: 2px dashed var(--glass-border);
+  border-radius: var(--radius);
+}
