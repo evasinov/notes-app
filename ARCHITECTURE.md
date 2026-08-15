@@ -1,99 +1,127 @@
-Архитектура Smart Notes System
+АРХИТЕКТУРА SMART NOTES SYSTEM
+Версия 0.4.0
 
-Документ для разработчиков и LLM-агентов.
+Этот файл - точка входа в проект для разработчиков и LLM-агентов.
 
-## 1. Обзор
+ОБЗОР
+Smart Notes - многопользовательское веб-приложение для создания,
+поиска и управления заметками.
 
-Проект разделён на Backend (API) и Frontend (React SPA).
-Frontend запрашивает данные через HTTP у Backend.
-Backend хранит данные в PostgreSQL и синхронизирует поиск в Typesense.
+Стек:
+- Backend: Node.js + Fastify (CommonJS)
+- Frontend: React 18 + Vite
+- Database: PostgreSQL 16
+- Search: Typesense 27
+- Auth: JWT + bcryptjs
 
-## 2. Backend (Node.js + Fastify)
+СТРУКТУРА ПРОЕКТА
+notes-app/
+  backend/
+    src/
+      core/
+        server.js - точка входа, подключает модули
+        db.js - пул PostgreSQL, миграции
+        events.js - EventBus (шина событий)
+        auth-middleware.js - проверка JWT
+      modules/
+        auth/ - регистрация, вход, выдача JWT
+        notes/ - CRUD заметок
+        search/ - поиск через Typesense
+  frontend/
+    src/
+      main.jsx - точка входа React
+      App.jsx - главный компонент
+      styles/global.css - все стили
+  docker-compose.yml - PostgreSQL и Typesense
 
-Путь: backend/
+BACKEND (ЯДРО)
+server.js - запускает Fastify, вызывает initSchema, подключает модули.
+db.js - экспортирует query() и initSchema(). Модули не знают строку подключения.
+events.js - EventBus. Методы on() и emit().
+auth-middleware.js - проверяет заголовок Authorization, верифицирует JWT.
 
-Ядро (Core):
-- core/server.js — точка входа, запускает Fastify, подключает модули
-- core/db.js — пул соединений с PostgreSQL
-- core/events.js — шина событий (EventBus)
+МОДУЛИ BACKEND
+Каждый модуль - папка в backend/src/modules/имя/index.js
 
-Модули:
-Каждый модуль — папка в backend/src/modules/<имя>/index.js
 Правила:
-1. Модуль не знает о других модулях
-2. Модуль экспортирует функцию function module(app, opts, done)
-3. В server.js модуль подключается через app.register(module)
+1. Модуль не знает о других модулях.
+2. Модуль экспортирует функцию function(module, opts, done).
+3. Внутри определяются роуты (app.get, app.post).
+4. Защита роутов: preHandler: authMiddleware.
+5. Модуль может подписываться на события через EventBus.on().
 
 Как добавить новый модуль:
-1. Создай папку backend/src/modules/<имя>/index.js
-2. Напиши роуты (например, app.get('/<имя>', ...))
-3. Импортируй и подключи в core/server.js через app.register()
+1. Создай папку backend/src/modules/имя/index.js.
+2. Напиши роуты.
+3. Подключи в core/server.js через app.register(module).
 
-Текущие модули:
-- notes: GET /notes, POST /notes, DELETE /notes/:id
-- search: GET /search?q=текст
+ТЕКУЩИЕ МОДУЛИ
+auth: POST /auth/register, POST /auth/login (без защиты)
+notes: GET /notes, POST /notes, DELETE /notes/:id (с защитой)
+search: GET /search?q= (с защитой)
 
-## 3. Поиск (Typesense)
-
-Модуль search слушает события EventBus:
-- note:created -> индексирует заметку в Typesense
-- note:deleted -> удаляет заметку из индекса
-
-Typesense коллекция: notes
-Поля: title, content, tags, created_at
-
-## 4. Frontend (React + Vite)
-
-Путь: frontend/
-
-Файлы:
-- src/App.jsx — главный компонент (шапка, поиск, список, модалка, сортировка)
-- src/main.jsx — точка входа React
-- src/styles/global.css — все стили
-
-API Proxy:
-Vite проксирует /api/* на http://localhost:3333/*
-Фронтенд пишет fetch('/api/notes'), реально запрос идёт на http://localhost:3333/notes
-
-## 5. База данных
+БАЗА ДАННЫХ
+Таблица users:
+id, username (unique), password_hash, created_at
 
 Таблица notes:
-- id SERIAL PRIMARY KEY
-- title TEXT NOT NULL
-- content TEXT
-- tags TEXT[] DEFAULT '{}'
-- created_at TIMESTAMPTZ DEFAULT NOW()
+id, user_id (FK на users), title, content, tags (массив), created_at
 
-Миграции выполняются при старте (db.initSchema())
+Связь: один пользователь - много заметок.
 
-## 6. Дизайн
+ПОИСК (TYPESENSE)
+Модуль search слушает события:
+note:created - индексирует заметку
+note:deleted - удаляет из индекса
 
-Стиль: Dark Theme + Glassmorphism
-Фон: Black 85% (#1a1a1a)
-Акцент: Pantone 166C (#E35205)
+Поиск: GET /search?q=текст
+Фильтр: только заметки текущего пользователя (user_id)
 
-## 7. Git Flow
+FRONTEND
+App.jsx содержит всю логику:
+- Авторизация (логин/регистрация)
+- Загрузка заметок
+- Поиск
+- Сортировка (date_desc, date_asc, title_asc)
+- Модальное окно добавления
+- Удаление
 
-Формат коммитов:
-- Feat: <что добавлено>
-- Fix: <что исправлено>
-- Refactor: <что переделано>
-- Docs: <что задокументировано>
+Токен хранится в localStorage (ключ token).
+Все запросы к API отправляют заголовок Authorization: Bearer токен.
+Функция getHeaders() формирует заголовки.
 
-## 8. План развития
+Vite проксирует /api/* на http://127.0.0.1:3333/*
 
-- [x] Модульная архитектура
-- [x] Парсер тегов
-- [x] Поиск (Typesense)
-- [ ] Авторизация (JWT)
-- [ ] Шаринг заметок коллегам
-- [ ] Комментарии к заметкам
-- [ ] Версионирование изменений
+ДИЗАЙН
+Фон: #1a1a1a (Black 85%)
+Акцент: #E35205 (Pantone 166C)
+Стиль: Glassmorphism + Dark Theme
 
-## 9. LLM-инструкция
+GIT FLOW
+Feat: описание - новая функция
+Fix: описание - исправление
+Refactor: описание - переделка
+Docs: описание - документация
 
-Если ты (ИИ) работаешь с этим проектом:
-1. Сначала прочитай этот файл
-2. Не меняй core/ без необходимости
-3. Новые фичи добавляй как модули (Backend) или компоненты (Frontend)
-4. Все изменения оформляй коммитами с понятными сообщениями
+ПЛАН РАЗВИТИЯ
+[x] Модульная архитектура
+[x] Парсер тегов
+[x] Поиск
+[x] Авторизация
+[x] Привязка заметок к пользователям
+[ ] Дебаунс поиска
+[ ] Шаринг заметок
+[ ] Комментарии
+[ ] Версионирование
+
+ЗАПУСК
+Инфраструктура: docker compose up -d
+Backend: cd backend && npm start (порт 3333)
+Frontend: cd frontend && npm run dev (порт 5173)
+
+LLM-ИНСТРУКЦИЯ
+Если ты ИИ и работаешь с этим проектом:
+1. Прочитай этот файл.
+2. Не меняй core/ без необходимости.
+3. Новые фичи добавляй как модули.
+4. Оформляй изменения коммитами.
