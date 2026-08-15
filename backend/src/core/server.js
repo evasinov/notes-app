@@ -5,6 +5,7 @@ const db = require('./db.js');
 const notesModule = require('../modules/notes/index.js');
 const searchModule = require('../modules/search/index.js');
 const authModule = require('../modules/auth/index.js');
+const tagsModule = require('../modules/tags/index.js');
 
 const app = Fastify({ logger: true });
 const PORT = 3333;
@@ -26,6 +27,9 @@ async function loadModules() {
   
   app.register(searchModule);
   console.log('[Core] Модуль "Поиск" подключен');
+
+  app.register(tagsModule);
+  console.log('[Core] Модуль "Теги" подключен');
 }
 
 async function start() {
