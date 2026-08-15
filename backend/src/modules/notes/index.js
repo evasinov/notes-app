@@ -1,11 +1,22 @@
-// Модуль "Заметки"
-// Работает с БД через ядро db.js
+// Модуль "Заметки" с умным парсером тегов
 import EventBus from '../../core/events.js';
 import db from '../../core/db.js';
 
+// Функция для извлечения тегов из текста
+function extractTags(text) {
+  const matches = text.match(/#[а-яА-Яa-zA-Z0-9_-]+/g) || [];
+  const tags = matches.map(tag => tag.slice(1)); // Убираем символ #
+  return [...new Set(tags)]; // Убираем дубликаты
+}
+
+// Функция для очистки текста от тегов (чтобы в контенте не было #тегов)
+function cleanContent(text) {
+  return text.replace(/#[а-яА-Яa-zA-Z0-9_-]+/g, '').trim();
+}
+
 function notesModule(app, opts, done) {
   
-  // Получить все заметки (сортировка по дате создания)
+  // Получить все заметки
   app.get('/notes', async (request, reply) => {
     const result = await db.query('SELECT * FROM notes ORDER BY created_at DESC');
     return { data: result.rows };
@@ -13,22 +24,20 @@ function notesModule(app, opts, done) {
 
   // Создать новую заметку
   app.post('/notes', async (request, reply) => {
-    const { title, content, tags } = request.body;
+    const { title, content } = request.body;
     
-    // Если теги пришли строкой, превращаем в массив
-    let tagsArray = tags;
-    if (typeof tags === 'string') {
-      tagsArray = tags.split(',').map(t => t.trim());
-    }
+    // Извлекаем теги из контента (если они есть)
+    const tags = extractTags(content || '');
+    const cleanContentText = cleanContent(content || '');
 
     const result = await db.query(
       'INSERT INTO notes (title, content, tags) VALUES ($1, $2, $3) RETURNING *',
-      [title || 'Без названия', content || '', tagsArray || []]
+      [title || 'Без названия', cleanContentText, tags]
     );
 
     const newNote = result.rows[0];
     
-    // Сообщаем системе о новой заметке
+    // Сообщаем системе о новой заметке (для будущих модулей)
     EventBus.emit('note:created', newNote);
     
     return { data: newNote };

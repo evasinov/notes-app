@@ -1,20 +1,13 @@
 :root {
-  /* Фон и поверхности */
-  --bg-primary: #1a1a1a;      /* Black 85% */
-  --bg-secondary: #242424;    /* Чуть светлее для панелей */
-  --glass-bg: rgba(255, 255, 255, 0.03); /* Полупрозрачная подложка карточек */
+  --bg-primary: #1a1a1a;
+  --bg-secondary: #242424;
+  --glass-bg: rgba(255, 255, 255, 0.03);
   --glass-border: rgba(255, 255, 255, 0.08);
-
-  /* Типографика */
-  --text-primary: #f5f5f5;    /* Почти белый */
-  --text-secondary: #a3a3a3;  /* Приглушенный серый */
-
-  /* Акцент и семантика */
-  --accent: #E35205;          /* Pantone 166 C - главный цвет */
-  --accent-hover: #ff6a1a;    /* Светлее при наведении */
+  --text-primary: #f5f5f5;
+  --text-secondary: #a3a3a3;
+  --accent: #E35205;
+  --accent-hover: #ff6a1a;
   --danger: #ff4d4d;
-  --success: #4ade80;
-
   --radius: 16px;
 }
 
@@ -26,7 +19,7 @@
 
 body {
   font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
-  background: linear-gradient(145deg, #1a1a1a 0%, #0d0d0d 100%); /* Black 85% */
+  background: linear-gradient(145deg, #1a1a1a 0%, #0d0d0d 100%);
   min-height: 100vh;
   color: var(--text-primary);
   padding: 20px;
@@ -37,51 +30,28 @@ body {
   margin: 0 auto;
 }
 
-/* ==== Quick Add Panel ==== */
-.quick-add {
-  background: var(--glass-bg);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
-  border: 1px solid var(--glass-border);
-  border-radius: var(--radius);
-  padding: 24px;
-  margin-bottom: 32px;
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+/* ==== ШАПКА ==== */
+.app-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 24px;
 }
 
-.quick-add input,
-.quick-add textarea {
-  width: 100%;
-  background: rgba(0, 0, 0, 0.4);
-  border: 1px solid var(--glass-border);
-  border-radius: 12px;
-  padding: 14px 16px;
-  color: var(--text-primary);
-  font-size: 16px;
-  margin-bottom: 12px;
-  outline: none;
-  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+.app-title {
+  font-size: 28px;
+  font-weight: 700;
+  letter-spacing: -0.5px;
 }
 
-.quick-add input:focus,
-.quick-add textarea:focus {
-  border-color: var(--accent);
-  box-shadow: 0 0 0 3px rgba(227, 82, 5, 0.2); /* Ореол в цвет Pantone */
-}
-
-.quick-add input::placeholder,
-.quick-add textarea::placeholder {
-  color: #666;
-}
-
-/* Кнопка */
+/* ==== КНОПКИ ==== */
 .btn-primary {
   background: var(--accent);
   color: #ffffff;
   border: none;
   border-radius: 12px;
-  padding: 14px 24px;
-  font-size: 16px;
+  padding: 12px 20px;
+  font-size: 15px;
   font-weight: 600;
   cursor: pointer;
   transition: transform 0.1s ease, box-shadow 0.2s ease, background 0.2s ease;
@@ -93,63 +63,176 @@ body {
   box-shadow: 0 8px 20px rgba(227, 82, 5, 0.4);
 }
 
-/* ==== Notes Feed ==== */
-.notes-feed {
+.btn-delete {
+  background: transparent;
+  border: none;
+  color: var(--text-secondary);
+  cursor: pointer;
+  font-size: 16px;
+  padding: 4px 8px;
+  border-radius: 6px;
+  transition: all 0.2s ease;
+}
+
+.btn-delete:hover {
+  color: var(--danger);
+  background: rgba(255, 77, 77, 0.1);
+}
+
+.btn-close {
+  background: transparent;
+  border: none;
+  color: var(--text-secondary);
+  font-size: 20px;
+  cursor: pointer;
+  transition: color 0.2s;
+}
+
+.btn-close:hover {
+  color: var(--danger);
+}
+
+.btn-block {
+  width: 100%;
+}
+
+/* ==== СОРТИРОВКА ==== */
+.sort-bar {
   display: flex;
-  flex-direction: column;
-  gap: 16px;
-}
-
-.note-card {
-  background: var(--glass-bg);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
-  border: 1px solid var(--glass-border);
-  border-radius: var(--radius);
-  padding: 20px;
-  transition: transform 0.2s ease, background 0.2s ease, border-color 0.2s ease;
-  border-left: 4px solid var(--accent); /* Яркая полоска слева */
-}
-
-.note-card:hover {
-  background: rgba(255, 255, 255, 0.05);
-  border-color: rgba(255, 255, 255, 0.15);
-  transform: translateY(-4px);
-}
-
-.note-header {
-  display: flex;
-  justify-content: space-between;
   align-items: center;
-  margin-bottom: 12px;
+  gap: 12px;
+  margin-bottom: 24px;
+  flex-wrap: wrap;
 }
 
-.note-header h3 {
-  font-size: 18px;
-  font-weight: 600;
+.sort-label {
+  color: var(--text-secondary);
+  font-size: 14px;
+}
+
+.sort-btn {
+  background: transparent;
+  border: 1px solid var(--glass-border);
+  color: var(--text-secondary);
+  padding: 8px 16px;
+  border-radius: 20px;
+  cursor: pointer;
+  font-size: 14px;
+  transition: all 0.2s ease;
+}
+
+.sort-btn:hover {
+  border-color: var(--accent);
   color: var(--text-primary);
 }
 
-.note-date {
+.sort-btn.active {
+  background: rgba(227, 82, 5, 0.2);
+  color: var(--accent);
+  border-color: var(--accent);
+}
+
+/* ==== ОСНОВНАЯ СЕТКА ==== */
+.main-layout {
+  display: grid;
+  grid-template-columns: 400px 1fr;
+  gap: 24px;
+  min-height: 500px;
+}
+
+/* ==== СПИСОК ЗАМЕТОК ==== */
+.notes-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  overflow-y: auto;
+  max-height: 70vh;
+}
+
+.list-item {
+  background: var(--glass-bg);
+  border: 1px solid var(--glass-border);
+  border-radius: 12px;
+  padding: 14px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.list-item:hover {
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.list-item.selected {
+  border-color: var(--accent);
+  background: rgba(227, 82, 5, 0.1);
+}
+
+.list-item-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.list-item-title {
+  font-weight: 600;
+  font-size: 15px;
+}
+
+.list-item-date {
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+.tag-mini {
+  font-size: 11px;
+  color: var(--accent);
+  margin-right: 6px;
+}
+
+/* ==== ДЕТАЛЬНЫЙ ПРОСМОТР ==== */
+.note-detail {
+  background: var(--glass-bg);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius);
+  padding: 24px;
+  min-height: 300px;
+}
+
+.note-detail-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 8px;
+}
+
+.note-detail-header h2 {
+  font-size: 24px;
+  font-weight: 600;
+}
+
+.note-detail-date {
   font-size: 13px;
   color: var(--text-secondary);
+  margin-bottom: 16px;
 }
 
-.note-card p {
-  color: var(--text-secondary);
-  line-height: 1.6;
-  margin-bottom: 12px;
+.note-detail-content {
+  color: var(--text-primary);
+  line-height: 1.7;
+  white-space: pre-wrap;
 }
 
-/* Теги */
+/* ==== ТЕГИ ==== */
 .note-tags {
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
+  margin-top: 16px;
 }
 
 .tag {
-  background: rgba(227, 82, 5, 0.15); /* Полупрозрачный Pantone */
+  background: rgba(227, 82, 5, 0.15);
   color: var(--accent);
   padding: 4px 12px;
   border-radius: 20px;
@@ -158,11 +241,81 @@ body {
   border: 1px solid rgba(227, 82, 5, 0.3);
 }
 
-/* Пустое состояние */
+/* ==== ПУСТОЕ СОСТОЯНИЕ ==== */
 .empty-state {
   text-align: center;
   padding: 60px 20px;
   color: var(--text-secondary);
   border: 2px dashed var(--glass-border);
   border-radius: var(--radius);
+}
+
+/* ==== МОДАЛЬНОЕ ОКНО ==== */
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.7);
+  backdrop-filter: blur(4px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+
+.modal {
+  background: #1e1e1e;
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius);
+  padding: 24px;
+  width: 500px;
+  max-width: 90vw;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.6);
+}
+
+.modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16px;
+}
+
+.modal-header h3 {
+  font-size: 20px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+/* ==== ФОРМЫ В МОДАЛКЕ ==== */
+.modal input,
+.modal textarea {
+  width: 100%;
+  background: rgba(0, 0, 0, 0.4);
+  border: 1px solid var(--glass-border);
+  border-radius: 12px;
+  padding: 14px 16px;
+  color: var(--text-primary);
+  font-size: 16px;
+  margin-bottom: 12px;
+  outline: none;
+  font-family: 'Inter', sans-serif;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.modal input:focus,
+.modal textarea:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px rgba(227, 82, 5, 0.2);
+}
+
+.modal input::placeholder,
+.modal textarea::placeholder {
+  color: #666;
+}
+
+.modal textarea {
+  resize: vertical;
+  min-height: 100px;
 }
