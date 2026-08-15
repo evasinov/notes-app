@@ -1,22 +1,16 @@
-// Ядро базы данных (Database Core)
-// Модули не должны знать детали подключения.
-// Они просто вызывают db.query(...)
+// Ядро базы данных (CommonJS)
+const { Pool } = require('pg');
 
-import pg from 'pg';
-const { Pool } = pg;
-
-// Настройки подключения (совпадают с docker-compose.yml)
 const pool = new Pool({
-  host: process.env.DB_HOST || 'localhost',
-  port: process.env.DB_PORT || 5432,
-  user: process.env.DB_USER || 'analyst',
-  password: process.env.DB_PASSWORD || 'secret_password',
-  database: process.env.DB_NAME || 'notes',
-  max: 10, // максимум соединений
+  host: 'localhost',
+  port: 5432,
+  user: 'analyst',
+  password: 'secret_password',
+  database: 'notes',
+  max: 10,
   idleTimeoutMillis: 30000
 });
 
-// Функция для выполнения запросов
 async function query(text, params) {
   const start = Date.now();
   const result = await pool.query(text, params);
@@ -25,8 +19,18 @@ async function query(text, params) {
   return result;
 }
 
-// Функция для инициализации таблиц (вызывается при старте сервера)
 async function initSchema() {
+  // Создаем таблицу users (если нет)
+  await query(`
+    CREATE TABLE IF NOT EXISTS users (
+      id SERIAL PRIMARY KEY,
+      username TEXT UNIQUE NOT NULL,
+      password_hash TEXT NOT NULL,
+      created_at TIMESTAMPTZ DEFAULT NOW()
+    );
+  `);
+  
+  // Создаем таблицу notes (если нет)
   await query(`
     CREATE TABLE IF NOT EXISTS notes (
       id SERIAL PRIMARY KEY,
@@ -36,8 +40,13 @@ async function initSchema() {
       created_at TIMESTAMPTZ DEFAULT NOW()
     );
   `);
+  
+  // Добавляем колонку user_id, если её нет (для старых БД)
+  await query(`
+    ALTER TABLE notes ADD COLUMN IF NOT EXISTS user_id INTEGER REFERENCES users(id) ON DELETE CASCADE;
+  `);
+  
   console.log('[DB] Схема инициализирована');
 }
 
-export default { query, initSchema };
-
+module.exports = { query, initSchema };

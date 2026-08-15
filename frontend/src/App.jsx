@@ -1,6 +1,12 @@
 import React, { useState, useEffect, useCallback } from 'react';
 
 function App() {
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [authMode, setAuthMode] = useState('login');
+  const [username, setUsername] = useState('');
+  const [password, setPassword] = useState('');
+  const [authError, setAuthError] = useState('');
+  
   const [notes, setNotes] = useState([]);
   const [selectedNote, setSelectedNote] = useState(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -13,9 +19,24 @@ function App() {
 
   const API_BASE = '/api';
 
+  // Проверяем токен при старте
+  useEffect(() => {
+    const token = localStorage.getItem('token');
+    if (token) setIsLoggedIn(true);
+  }, []);
+
+  // Функция для получения заголовков с токеном
+  const getHeaders = () => {
+    const token = localStorage.getItem('token');
+    return {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${token}`
+    };
+  };
+
   const loadNotes = useCallback(async () => {
     try {
-      const res = await fetch(`${API_BASE}/notes`);
+      const res = await fetch(`${API_BASE}/notes`, { headers: getHeaders() });
       const json = await res.json();
       setNotes(json.data);
     } catch (err) {
@@ -24,10 +45,53 @@ function App() {
   }, []);
 
   useEffect(() => {
-    loadNotes();
-  }, [loadNotes]);
+    if (isLoggedIn) loadNotes();
+  }, [isLoggedIn, loadNotes]);
 
-  // Поиск
+  const handleAuth = async (e) => {
+    e.preventDefault();
+    setAuthError('');
+    
+    const endpoint = authMode === 'login' ? '/auth/login' : '/auth/register';
+    
+    try {
+      const res = await fetch(`${API_BASE}${endpoint}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username, password })
+      });
+      
+      const json = await res.json();
+      
+      if (res.ok) {
+        if (authMode === 'register') {
+          const loginRes = await fetch(`${API_BASE}/auth/login`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ username, password })
+          });
+          const loginJson = await loginRes.json();
+          localStorage.setItem('token', loginJson.token);
+        } else {
+          localStorage.setItem('token', json.token);
+        }
+        setIsLoggedIn(true);
+        setPassword('');
+      } else {
+        setAuthError(json.error || 'Ошибка');
+      }
+    } catch (err) {
+      setAuthError('Сервер недоступен');
+    }
+  };
+
+  const handleLogout = () => {
+    localStorage.removeItem('token');
+    setIsLoggedIn(false);
+    setNotes([]);
+    setSelectedNote(null);
+  };
+
   const handleSearch = async (e) => {
     const q = e.target.value;
     setSearchQuery(q);
@@ -38,7 +102,7 @@ function App() {
     }
 
     try {
-      const res = await fetch(`${API_BASE}/search?q=${encodeURIComponent(q)}`);
+      const res = await fetch(`${API_BASE}/search?q=${encodeURIComponent(q)}`, { headers: getHeaders() });
       const json = await res.json();
       setSearchResults(json.data);
     } catch (err) {
@@ -51,7 +115,7 @@ function App() {
     
     await fetch(`${API_BASE}/notes`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: getHeaders(),
       body: JSON.stringify({ title, content })
     });
     
@@ -62,13 +126,54 @@ function App() {
   };
 
   const handleDelete = async (id) => {
-    await fetch(`${API_BASE}/notes/${id}`, { method: 'DELETE' });
+    await fetch(`${API_BASE}/notes/${id}`, { method: 'DELETE', headers: getHeaders() });
     if (selectedNote?.id === id) setSelectedNote(null);
     loadNotes();
   };
 
-  const displayedNotes = searchResults !== null ? searchResults : notes;
+  if (!isLoggedIn) {
+    return (
+      <div className="auth-container">
+        <div className="auth-box">
+          <h1 className="auth-title">Smart Notes</h1>
+          <p className="auth-subtitle">Вход в систему</p>
+          
+          <form onSubmit={handleAuth}>
+            <input
+              type="text"
+              className="auth-input"
+              placeholder="Логин"
+              value={username}
+              onChange={(e) => setUsername(e.target.value)}
+              required
+            />
+            <input
+              type="password"
+              className="auth-input"
+              placeholder="Пароль"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              required
+            />
+            {authError && <div className="auth-error">{authError}</div>}
+            
+            <button type="submit" className="btn-primary btn-block">
+              {authMode === 'login' ? 'Войти' : 'Зарегистрироваться'}
+            </button>
+          </form>
+          
+          <p className="auth-switch">
+            {authMode === 'login' ? 'Нет аккаунта?' : 'Уже есть аккаунт?'}{' '}
+            <span onClick={() => setAuthMode(authMode === 'login' ? 'register' : 'login')}>
+              {authMode === 'login' ? 'Создать' : 'Войти'}
+            </span>
+          </p>
+        </div>
+      </div>
+    );
+  }
 
+  const displayedNotes = searchResults !== null ? searchResults : notes;
   const sortedNotes = [...displayedNotes].sort((a, b) => {
     if (sortBy === 'date_asc') return new Date(a.created_at) - new Date(b.created_at);
     if (sortBy === 'title_asc') return a.title.localeCompare(b.title, 'ru');
@@ -79,10 +184,13 @@ function App() {
     <div className="app-shell">
       <header className="app-header">
         <h1 className="app-title">Smart Notes</h1>
-        <button className="btn-primary" onClick={() => setIsModalOpen(true)}>+ Добавить</button>
+        <div className="header-actions">
+          <span className="user-name">{username}</span>
+          <button className="btn-logout" onClick={handleLogout}>Выйти</button>
+          <button className="btn-primary" onClick={() => setIsModalOpen(true)}>+ Добавить</button>
+        </div>
       </header>
 
-      {/* ПОИСК */}
       <div className="search-bar">
         <input
           type="text"

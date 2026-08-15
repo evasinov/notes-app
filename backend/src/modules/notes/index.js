@@ -1,51 +1,56 @@
-// Модуль "Заметки" с умным парсером тегов
-import EventBus from '../../core/events.js';
-import db from '../../core/db.js';
+// Модуль "Заметки" (CommonJS)
+const EventBus = require('../../core/events.js');
+const db = require('../../core/db.js');
+const authMiddleware = require('../../core/auth-middleware.js');
 
-// Функция для извлечения тегов из текста
-function extractTags(text) {
+function extractTags(text = '') {
   const matches = text.match(/#[а-яА-Яa-zA-Z0-9_-]+/g) || [];
-  const tags = matches.map(tag => tag.slice(1)); // Убираем символ #
-  return [...new Set(tags)]; // Убираем дубликаты
+  const tags = matches.map(tag => tag.slice(1));
+  return [...new Set(tags)];
 }
 
-// Функция для очистки текста от тегов (чтобы в контенте не было #тегов)
-function cleanContent(text) {
+function cleanContent(text = '') {
   return text.replace(/#[а-яА-Яa-zA-Z0-9_-]+/g, '').trim();
 }
 
 function notesModule(app, opts, done) {
   
-  // Получить все заметки
-  app.get('/notes', async (request, reply) => {
-    const result = await db.query('SELECT * FROM notes ORDER BY created_at DESC');
+  // Получить заметки ТОЛЬКО текущего пользователя
+  app.get('/notes', { preHandler: authMiddleware }, async (request, reply) => {
+    const result = await db.query(
+      'SELECT * FROM notes WHERE user_id = $1 ORDER BY created_at DESC',
+      [request.user.id]
+    );
     return { data: result.rows };
   });
 
-  // Создать новую заметку
-  app.post('/notes', async (request, reply) => {
+  // Создать заметку с привязкой к пользователю
+  app.post('/notes', { preHandler: authMiddleware }, async (request, reply) => {
     const { title, content } = request.body;
-    
-    // Извлекаем теги из контента (если они есть)
-    const tags = extractTags(content || '');
-    const cleanContentText = cleanContent(content || '');
+    const tags = extractTags(content);
+    const cleanText = cleanContent(content);
 
     const result = await db.query(
-      'INSERT INTO notes (title, content, tags) VALUES ($1, $2, $3) RETURNING *',
-      [title || 'Без названия', cleanContentText, tags]
+      'INSERT INTO notes (user_id, title, content, tags) VALUES ($1, $2, $3, $4) RETURNING *',
+      [request.user.id, title || 'Без названия', cleanText, tags]
     );
 
     const newNote = result.rows[0];
-    
-    // Сообщаем системе о новой заметке (для будущих модулей)
     EventBus.emit('note:created', newNote);
-    
     return { data: newNote };
   });
 
-  // Удалить заметку по ID
-  app.delete('/notes/:id', async (request, reply) => {
-    await db.query('DELETE FROM notes WHERE id = $1', [request.params.id]);
+  // Удалить заметку (только свою)
+  app.delete('/notes/:id', { preHandler: authMiddleware }, async (request, reply) => {
+    const result = await db.query(
+      'DELETE FROM notes WHERE id = $1 AND user_id = $2 RETURNING id',
+      [request.params.id, request.user.id]
+    );
+    
+    if (result.rows.length === 0) {
+      return reply.code(404).send({ error: 'Заметка не найдена' });
+    }
+    
     EventBus.emit('note:deleted', request.params.id);
     return { success: true };
   });
@@ -53,4 +58,4 @@ function notesModule(app, opts, done) {
   done();
 }
 
-export default notesModule;
+module.exports = notesModule;
