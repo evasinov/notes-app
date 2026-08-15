@@ -1,5 +1,6 @@
 import Fastify from 'fastify';
 import EventBus from './events.js';
+import db from './db.js';
 import notesModule from '../modules/notes/index.js';
 
 const app = Fastify({ logger: true });
@@ -10,11 +11,11 @@ app.get('/health', async () => {
 });
 
 async function loadModules() {
+  console.log('[Core] Инициализируем базу данных...');
+  await db.initSchema();
+  
   console.log('[Core] Подключаем модули...');
-  
-  // Подключаем модуль "Заметки"
   app.register(notesModule);
-  
   console.log('[Core] Модуль "Заметки" подключен');
 }
 

@@ -1,50 +1,47 @@
 // Модуль "Заметки"
-// Это наш первый "плагин". Он не знает про другие модули.
-// Ядро просто регистрирует его маршруты.
-
+// Работает с БД через ядро db.js
 import EventBus from '../../core/events.js';
+import db from '../../core/db.js';
 
-// Пока заметки храним в памяти (потом перенесем в БД)
-const notes = [
-  {
-    id: 1,
-    title: 'Добро пожаловать',
-    content: 'Это тестовая заметка. Скоро мы подключим Базу Данных.',
-    createdAt: new Date().toISOString(),
-    tags: ['старт']
-  }
-];
-
-// Функция, которую вызовет Fastify для подключения модуля
 function notesModule(app, opts, done) {
   
-  // Маршрут: Получить все заметки
+  // Получить все заметки (сортировка по дате создания)
   app.get('/notes', async (request, reply) => {
-    return { data: notes };
+    const result = await db.query('SELECT * FROM notes ORDER BY created_at DESC');
+    return { data: result.rows };
   });
 
-  // Маршрут: Создать новую заметку
+  // Создать новую заметку
   app.post('/notes', async (request, reply) => {
     const { title, content, tags } = request.body;
     
-    const newNote = {
-      id: notes.length + 1,
-      title: title || 'Без названия',
-      content: content || '',
-      createdAt: new Date().toISOString(),
-      tags: tags || []
-    };
+    // Если теги пришли строкой, превращаем в массив
+    let tagsArray = tags;
+    if (typeof tags === 'string') {
+      tagsArray = tags.split(',').map(t => t.trim());
+    }
+
+    const result = await db.query(
+      'INSERT INTO notes (title, content, tags) VALUES ($1, $2, $3) RETURNING *',
+      [title || 'Без названия', content || '', tagsArray || []]
+    );
+
+    const newNote = result.rows[0];
     
-    notes.push(newNote);
-    
-    // Отправляем событие в шину (кому надо — услышит)
+    // Сообщаем системе о новой заметке
     EventBus.emit('note:created', newNote);
     
     return { data: newNote };
+  });
+
+  // Удалить заметку по ID
+  app.delete('/notes/:id', async (request, reply) => {
+    const { id } = request.params;
+    await db.query('DELETE FROM notes WHERE id = $1', [id]);
+    return { success: true };
   });
 
   done();
 }
 
 export default notesModule;
-
