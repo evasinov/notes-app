@@ -1,0 +1,39 @@
+version: '3.8'
+
+services:
+  # 1. База данных PostgreSQL
+  db:
+    image: postgres:16-alpine
+    container_name: notes_db
+    environment:
+      POSTGRES_USER: analyst
+      POSTGRES_PASSWORD: secret_password
+      POSTGRES_DB: notes
+    volumes:
+      - db_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    command: >
+      postgres -c shared_buffers=256MB 
+               -c effective_cache_size=1GB 
+               -c work_mem=4MB
+    restart: unless-stopped
+
+  # 2. Поисковый движок Typesense
+  search:
+    image: typesense/typesense:27.0
+    container_name: notes_search
+    environment:
+      TYPESENSE_API_KEY: secret_key
+      TYPESENSE_DATA_DIR: /data
+      TYPESENSE_ENABLE_CORS: "true"
+    volumes:
+      - search_data:/data
+    ports:
+      - "8108:8108"
+    command: '--memory=256'
+    restart: unless-stopped
+
+volumes:
+  db_data:
+  search_data:
