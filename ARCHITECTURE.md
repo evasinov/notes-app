@@ -529,3 +529,57 @@ TODO:
 12. Тестируй через curl или браузер.
 13. Оформляй изменения коммитами.
 14. Если сомневаешься - спрашивай.
+
+========================================
+17. ГРАФ СВЯЗЕЙ (BACKLINKS)
+========================================
+
+17.1 ТАБЛИЦА note_links
+CREATE TABLE note_links (
+  id SERIAL PRIMARY KEY,
+  source_note_id INTEGER REFERENCES notes(id) ON DELETE CASCADE,
+  target_note_id INTEGER REFERENCES notes(id) ON DELETE CASCADE,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  UNIQUE(source_note_id, target_note_id)
+);
+
+Назначение: хранение связей между заметками.
+
+17.2 СИНТАКСИС ССЫЛОК
+В тексте заметки: [[Точное название другой заметки]]
+При сохранении бэкенд:
+1. Извлекает [[...]] из контента
+2. Ищет заметку с таким заголовком (у того же пользователя)
+3. Создает связь в note_links
+
+17.3 API
+GET /notes/graph - данные для графа
+Возвращает:
+{
+  nodes: [{ id, title, tags }],
+  links: [{ source_note_id, target_note_id }]
+}
+
+17.4 ФРОНТЕНД
+Библиотека: react-force-graph-2d
+Кнопка: "🕸 Граф" в шапке
+Модалка: GraphModal
+
+Особенности:
+- Стрелки (linkDirectionalArrowLength=6)
+- Частицы (linkDirectionalParticles=2)
+- Цвет узлов: #E35205 (Pantone 166C)
+- Подписи узлов: Inter, 11px, белый
+- Преобразование данных: source_note_id -> source, target_note_id -> target
+
+17.5 ДЕБАУНС ПОИСКА
+Реализован через useRef (debounceTimer)
+Задержка: 500мс
+Функция: handleSearchChange
+
+17.6 ФОКУС ПРИ РЕДАКТИРОВАНИИ
+После сохранения изменений:
+- selectedNote сохраняется (не сбрасывается)
+- Список обновляется
+- Фокус остается на редактируемой заметке
+
