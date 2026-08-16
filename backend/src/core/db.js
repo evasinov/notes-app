@@ -45,6 +45,17 @@ async function initSchema() {
   await query(`
     ALTER TABLE notes ADD COLUMN IF NOT EXISTS is_pinned BOOLEAN DEFAULT FALSE;
   `);
+
+  // Таблица связей между заметками (для графа)
+  await query(`
+    CREATE TABLE IF NOT EXISTS note_links (
+      id SERIAL PRIMARY KEY,
+      source_note_id INTEGER REFERENCES notes(id) ON DELETE CASCADE,
+      target_note_id INTEGER REFERENCES notes(id) ON DELETE CASCADE,
+      created_at TIMESTAMPTZ DEFAULT NOW(),
+      UNIQUE(source_note_id, target_note_id)
+    );
+  `);
   
   console.log('[DB] Схема инициализирована');
 }

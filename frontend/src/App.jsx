@@ -3,6 +3,7 @@ import { useEditor, EditorContent } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
 import CodeBlockLowlight from '@tiptap/extension-code-block-lowlight';
 import { common, createLowlight } from 'lowlight';
+import ForceGraph2D from 'react-force-graph-2d';
 
 const lowlight = createLowlight(common);
 
@@ -90,10 +91,71 @@ function ResizableModal({ isOpen, onClose, title, children }) {
           <button className="btn-close" onClick={onClose}>✕</button>
         </div>
         {children}
-        <div 
-          className="resize-handle" 
-          onMouseDown={handleResizeStart}
-        />
+        <div className="resize-handle" onMouseDown={handleResizeStart} />
+      </div>
+    </div>
+  );
+}
+
+function GraphModal({ isOpen, onClose, graphData }) {
+  if (!isOpen) return null;
+
+  // Преобразуем данные для react-force-graph
+  const formattedData = {
+    nodes: (graphData.nodes || []).map(n => ({
+      id: String(n.id),
+      title: n.title,
+      val: 2
+    })),
+    links: (graphData.links || []).map(l => ({
+      source: String(l.source_note_id || l.source),
+      target: String(l.target_note_id || l.target)
+    }))
+  };
+
+  return (
+    <div className="modal-overlay" onMouseDown={(e) => {
+      if (e.target === e.currentTarget) onClose();
+    }}>
+      <div className="modal graph-modal">
+        <div className="modal-header">
+          <h3>Граф связей</h3>
+          <button className="btn-close" onClick={onClose}>✕</button>
+        </div>
+        <div className="graph-container">
+          <ForceGraph2D
+            graphData={formattedData}
+            nodeLabel="title"
+            nodeColor={() => '#E35205'}
+            nodeRelSize={5}
+            linkColor={() => 'rgba(227, 82, 5, 0.6)'}
+            linkWidth={2}
+            linkDirectionalArrowLength={6}
+            linkDirectionalArrowRelPos={1}
+            linkDirectionalParticles={2}
+            linkDirectionalParticleSpeed={0.005}
+            backgroundColor="#1a1a1a"
+            width={800}
+            height={600}
+            nodeCanvasObject={(node, ctx, globalScale) => {
+              // Рисуем точку
+              const size = 4;
+              ctx.beginPath();
+              ctx.arc(node.x, node.y, size, 0, 2 * Math.PI);
+              ctx.fillStyle = '#E35205';
+              ctx.fill();
+              
+              // Рисуем подпись
+              const label = node.title || '';
+              const fontSize = 11 / globalScale;
+              ctx.font = `500 ${fontSize}px Inter, -apple-system, sans-serif`;
+              ctx.textAlign = 'center';
+              ctx.textBaseline = 'middle';
+              ctx.fillStyle = '#f5f5f5';
+              ctx.fillText(label, node.x, node.y - 12);
+            }}
+          />
+        </div>
       </div>
     </div>
   );
@@ -117,6 +179,8 @@ function App() {
   const [activeTag, setActiveTag] = useState(null);
   const [isDeleteConfirm, setIsDeleteConfirm] = useState(false);
   const [pinnedNoteId, setPinnedNoteId] = useState(null);
+  const [isGraphOpen, setIsGraphOpen] = useState(false);
+  const [graphData, setGraphData] = useState({ nodes: [], links: [] });
   
   const [title, setTitle] = useState('');
   const [content, setContent] = useState('');
@@ -124,6 +188,7 @@ function App() {
   const [editContent, setEditContent] = useState('');
   
   const tagCloudRef = useRef(null);
+  const debounceTimer = useRef(null);
 
   const API_BASE = '/api';
 
@@ -158,9 +223,16 @@ function App() {
       const loadedNotes = json.data || [];
       setNotes(loadedNotes);
       
-      if (loadedNotes.length > 0 && !selectedNote) {
-        setSelectedNote(loadedNotes[0]);
-      }
+      // Автовыбор только если еще нет выбранной заметки
+      setSelectedNote(prev => {
+        if (prev && loadedNotes.find(n => n.id === prev.id)) {
+          return prev;
+        }
+        if (loadedNotes.length > 0) {
+          return loadedNotes[0];
+        }
+        return null;
+      });
     } catch (err) {
       console.error('Ошибка загрузки:', err);
     }
@@ -176,12 +248,23 @@ function App() {
     }
   }, []);
 
+  const loadGraphData = useCallback(async () => {
+    try {
+      const res = await fetch(`${API_BASE}/notes/graph`, { headers: getAuthHeader() });
+      const json = await res.json();
+      setGraphData(json.data || { nodes: [], links: [] });
+    } catch (err) {
+      console.error('Ошибка загрузки графа:', err);
+    }
+  }, []);
+
   useEffect(() => {
     if (isLoggedIn) {
       loadNotes();
       loadTagsStats();
+      loadGraphData();
     }
-  }, [isLoggedIn, loadNotes, loadTagsStats]);
+  }, [isLoggedIn, loadNotes, loadTagsStats, loadGraphData]);
 
   const handleMouseMove = (e) => {
     if (!tagCloudRef.current) return;
@@ -271,23 +354,27 @@ function App() {
     setActiveTag(null);
   };
 
-  const handleSearch = async (e) => {
+  const handleSearchChange = (e) => {
     const q = e.target.value;
     setSearchQuery(q);
+    
+    if (debounceTimer.current) clearTimeout(debounceTimer.current);
     
     if (q.length === 0) {
       setSearchResults([]);
       return;
     }
-
-    try {
-      const res = await fetch(`${API_BASE}/search?q=${encodeURIComponent(q)}`, { headers: getAuthHeader() });
-      const json = await res.json();
-      setSearchResults(json.data || []);
-    } catch (err) {
-      console.error('Ошибка поиска:', err);
-      setSearchResults([]);
-    }
+    
+    debounceTimer.current = setTimeout(async () => {
+      try {
+        const res = await fetch(`${API_BASE}/search?q=${encodeURIComponent(q)}`, { headers: getAuthHeader() });
+        const json = await res.json();
+        setSearchResults(json.data || []);
+      } catch (err) {
+        console.error('Ошибка поиска:', err);
+        setSearchResults([]);
+      }
+    }, 500);
   };
 
   const handleSubmit = async (e) => {
@@ -304,6 +391,7 @@ function App() {
     setIsModalOpen(false);
     loadNotes();
     loadTagsStats();
+    loadGraphData();
   };
 
   const handleEditClick = () => {
@@ -317,15 +405,33 @@ function App() {
   const handleEditSubmit = async (e) => {
     e.preventDefault();
     
-    await fetch(`${API_BASE}/notes/${selectedNote.id}`, {
+    const currentNoteId = selectedNote?.id;
+    
+    const res = await fetch(`${API_BASE}/notes/${currentNoteId}`, {
       method: 'PUT',
       headers: getHeaders(),
       body: JSON.stringify({ title: editTitle, content: editContent })
     });
     
+    const json = await res.json();
+    
     setIsEditModalOpen(false);
-    loadNotes();
+    
+    // Сохраняем обновленную заметку как выбранную
+    if (json.data) {
+      setSelectedNote(json.data);
+    }
+    
+    // Перезагружаем список, но НЕ сбрасываем selectedNote
+    const token = localStorage.getItem('token');
+    const notesRes = await fetch(`${API_BASE}/notes`, { 
+      headers: { 'Authorization': `Bearer ${token}` } 
+    });
+    const notesJson = await notesRes.json();
+    setNotes(notesJson.data || []);
+    
     loadTagsStats();
+    loadGraphData();
   };
 
   const handleDelete = async (id) => {
@@ -337,6 +443,7 @@ function App() {
     setIsDeleteConfirm(false);
     loadNotes();
     loadTagsStats();
+    loadGraphData();
   };
 
   if (!isLoggedIn) {
@@ -414,6 +521,10 @@ function App() {
         </div>
         <div className="header-actions">
           <span className="user-name">{username}</span>
+          <button className="btn-graph" onClick={() => {
+            loadGraphData();
+            setIsGraphOpen(true);
+          }}>🕸 Граф</button>
           <button className="btn-logout" onClick={handleLogout}>Выйти</button>
           <button className="btn-primary" onClick={() => setIsModalOpen(true)}>+ Добавить</button>
         </div>
@@ -425,7 +536,7 @@ function App() {
           className="search-input"
           placeholder="Поиск по заметкам, тегам, контексту..."
           value={searchQuery}
-          onChange={handleSearch}
+          onChange={handleSearchChange}
         />
       </div>
 
@@ -552,6 +663,8 @@ function App() {
           <button type="submit" className="btn-primary btn-block">Сохранить</button>
         </form>
       </ResizableModal>
+
+      <GraphModal isOpen={isGraphOpen} onClose={() => setIsGraphOpen(false)} graphData={graphData} />
 
       {isDeleteConfirm && (
         <div className="modal-overlay" onClick={(e) => {
