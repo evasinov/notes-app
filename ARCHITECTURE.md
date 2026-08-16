@@ -1,14 +1,17 @@
-SMART NOTES SYSTEM - ПОЛНАЯ ДОКУМЕНТАЦИЯ
-Версия: 0.6.0
+SMART NOTES SYSTEM - ПОЛНАЯ ТЕХНИЧЕСКАЯ ДОКУМЕНТАЦИЯ
+Версия: 0.7.0
 Дата: 2026-08-16
+Автор: evasinov
 
+========================================
 ОГЛАВЛЕНИЕ
+========================================
 1. Обзор проекта
 2. Технологический стек
 3. Структура проекта
 4. Backend (подробно)
 5. Frontend (подробно)
-6. База данных
+6. База данных (детально)
 7. Поиск (Typesense)
 8. Авторизация (JWT)
 9. Редактор текста (TipTap)
@@ -20,11 +23,15 @@ SMART NOTES SYSTEM - ПОЛНАЯ ДОКУМЕНТАЦИЯ
 15. Текущие возможности и TODO
 16. Инструкция для LLM
 
+========================================
 1. ОБЗОР ПРОЕКТА
+========================================
 Smart Notes - многопользовательское веб-приложение для создания,
 хранения, поиска и редактирования заметок.
 
-Возможности:
+Целевая аудитория: системные аналитики страховой компании.
+
+Ключевые особенности:
 - Регистрация и авторизация (JWT)
 - CRUD заметок (создание, чтение, обновление, удаление)
 - WYSIWYG-редактор (TipTap) с поддержкой кода
@@ -39,152 +46,486 @@ Smart Notes - многопользовательское веб-приложен
 - Привязка заметок к пользователям
 - Адаптивный тёмный интерфейс
 
+========================================
 2. ТЕХНОЛОГИЧЕСКИЙ СТЕК
+========================================
 Backend:
-- Node.js 18+
-- Fastify 4
-- pg (PostgreSQL драйвер)
-- typesense
-- jsonwebtoken
-- bcryptjs
+- Node.js 18+ (среда выполнения)
+- Fastify 4 (веб-фреймворк, аналог Express, но быстрее)
+- pg (драйвер PostgreSQL)
+- typesense (клиент поискового движка)
+- jsonwebtoken (JWT для авторизации)
+- bcryptjs (хеширование паролей)
 
 Frontend:
-- React 18
-- Vite 5
-- TipTap (редактор)
-- lowlight (подсветка кода)
-- CSS (чистый)
+- React 18 (UI-библиотека)
+- Vite 5 (сборщик, dev-server)
+- TipTap (WYSIWYG-редактор на ProseMirror)
+- lowlight (подсветка синтаксиса кода)
+- CSS (чистый, без фреймворков)
 
 Инфраструктура:
 - PostgreSQL 16 (Docker)
 - Typesense 27 (Docker)
 - Docker Compose
 
+========================================
 3. СТРУКТУРА ПРОЕКТА
+========================================
 notes-app/
-  docker-compose.yml
-  README.md
-  ARCHITECTURE.md
-  backend/
-    src/
-      core/
-        server.js - точка входа
-        db.js - пул PostgreSQL
-        events.js - EventBus
-        auth-middleware.js - JWT проверка
-      modules/
-        auth/index.js - регистрация, вход
-        notes/index.js - CRUD заметок + pin
-        tags/index.js - статистика тегов
-        search/index.js - поиск Typesense
-  frontend/
-    src/
-      main.jsx - точка входа React
-      App.jsx - главный компонент
-      styles/global.css - стили
+├── docker-compose.yml          # PostgreSQL + Typesense
+├── README.md                   # Краткое описание
+├── ARCHITECTURE.md             # Этот файл
+├── backend/
+│   ├── package.json
+│   ├── node_modules/
+│   └── src/
+│       ├── core/
+│       │   ├── server.js       # Точка входа
+│       │   ├── db.js           # Пул PostgreSQL
+│       │   ├── events.js       # EventBus
+│       │   └── auth-middleware.js # JWT проверка
+│       └── modules/
+│           ├── auth/
+│           │   └── index.js    # Регистрация, вход
+│           ├── notes/
+│           │   └── index.js    # CRUD заметок + pin
+│           ├── tags/
+│           │   └── index.js    # Статистика тегов
+│           └── search/
+│               └── index.js    # Поиск Typesense
+└── frontend/
+    ├── package.json
+    ├── vite.config.js
+    ├── index.html
+    └── src/
+        ├── main.jsx            # Точка входа React
+        ├── App.jsx             # Главный компонент
+        └── styles/
+            └── global.css      # Все стили
 
+========================================
 4. BACKEND (ПОДРОБНО)
-4.1 ЯДРО
-server.js - Fastify, порт 3333, подключение модулей
-db.js - query(), initSchema() (создание таблиц и колонок)
-events.js - EventBus (on, emit)
-auth-middleware.js - проверка JWT, добавляет request.user
+========================================
+
+4.1 ЯДРО (CORE)
+
+server.js:
+- Создает экземпляр Fastify с логированием
+- Вызывает db.initSchema() для миграций
+- Подключает модули через app.register()
+- Запускает на 0.0.0.0:3333
+- Эмитит событие server:started
+
+db.js:
+- Создает пул PostgreSQL (pg.Pool)
+- Экспортирует query(text, params) - выполнение SQL
+- Экспортирует initSchema() - миграции
+- Конфигурация через переменные окружения (с дефолтами)
+
+events.js:
+- EventBus (паттерн Observer)
+- on(event, callback) - подписка
+- emit(event, data) - отправка
+- Синглтон (один экземпляр на всё приложение)
+
+auth-middleware.js:
+- Проверяет заголовок Authorization
+- Верифицирует JWT
+- Добавляет request.user (id, username)
 
 4.2 МОДУЛИ
-auth: POST /auth/register, POST /auth/login
-notes: GET /notes, POST /notes, PUT /notes/:id, DELETE /notes/:id, PATCH /notes/:id/pin
-tags: GET /tags/stats
-search: GET /search?q=
 
-События EventBus:
-note:created -> search.js upsertNote
-note:updated -> search.js upsertNote
-note:deleted -> search.js removeNote
+МОДУЛЬ AUTH (auth/index.js)
+Роуты:
+- POST /auth/register - регистрация
+  Вход: username, password
+  Хеширует пароль (bcrypt, 10 раундов)
+  Сохраняет в users
+  Выход: id, username
 
-5. FRONTEND (ПОДРОБНО)
-Компоненты:
-- NoteEditor (TipTap WYSIWYG)
-- ResizableModal (растягиваемые модалки)
-- App (главный компонент)
+- POST /auth/login - вход
+  Вход: username, password
+  Проверяет пароль через bcrypt.compare
+  Выдает JWT (7 дней)
+  Выход: token, user
 
-Состояния App:
-isLoggedIn, authMode, username, password
-notes, selectedNote
-isModalOpen, isEditModalOpen, isDeleteConfirm
-sortBy, searchQuery, searchResults
-tagsStats, activeTag
-pinnedNoteId
-title, content, editTitle, editContent
+Зависимости: bcryptjs, jsonwebtoken, db
 
+МОДУЛЬ NOTES (notes/index.js)
 Функции:
+- extractTags(text) - извлекает #теги из текста (не удаляет их)
+- cleanContent(text) - убирает теги (используется при сохранении)
+
+Роуты:
+- GET /notes - список заметок пользователя
+  Сортировка: is_pinned DESC, created_at DESC
+
+- POST /notes - создание
+  Вход: title, content (HTML)
+  Извлекает теги, сохраняет с user_id
+  Эмитит note:created
+
+- PUT /notes/:id - обновление
+  Вход: title, content
+  Извлекает теги заново
+  Эмитит note:updated
+
+- DELETE /notes/:id - удаление
+  Проверяет, что заметка принадлежит пользователю
+  Эмитит note:deleted
+
+- PATCH /notes/:id/pin - переключение закрепления
+  UPDATE notes SET is_pinned = NOT is_pinned
+  Эмитит note:updated
+
+Зависимости: db, events, auth-middleware
+
+МОДУЛЬ TAGS (tags/index.js)
+Роуты:
+- GET /tags/stats - статистика тегов пользователя
+  SQL: CROSS JOIN LATERAL unnest(COALESCE(tags, ARRAY[]::TEXT[]))
+  Группировка по тегу, подсчет количества
+
+Зависимости: db, auth-middleware
+
+МОДУЛЬ SEARCH (search/index.js)
+Функции:
+- ensureCollection() - создание коллекции Typesense
+- upsertNote(note) - индексация/обновление
+- removeNote(id) - удаление из индекса
+
+Роуты:
+- GET /search?q= - поиск
+  Фильтр: user_id
+  Поля: title, content, tags
+  Сортировка: created_at DESC
+
+Подписки:
+- note:created -> upsertNote
+- note:updated -> upsertNote
+- note:deleted -> removeNote
+
+Зависимости: db, events, auth-middleware, typesense
+
+========================================
+5. FRONTEND (ПОДРОБНО)
+========================================
+
+5.1 ФАЙЛЫ
+main.jsx - рендер React в #root
+App.jsx - главный компонент (вся логика)
+global.css - стили
+
+5.2 КОМПОНЕНТЫ (внутри App.jsx)
+
+NoteEditor:
+- WYSIWYG-редактор на TipTap
+- Кнопки: B, I, S, H1, H2, списки, код, линия
+- Поддержка CodeBlockLowlight (подсветка кода)
+- Содержимое хранится как HTML
+
+ResizableModal:
+- Растягиваемое модальное окно
+- Кастомная ручка в правом нижнем углу
+- Логика: mousedown -> mousemove -> mouseup
+- Блокировка закрытия во время растягивания (resizeFlag)
+
+App:
+- Главный компонент
+- Управляет всеми состояниями
+
+5.3 СОСТОЯНИЯ APP
+isLoggedIn - авторизован ли
+authMode - login/register
+username - имя пользователя
+password - пароль
+authError - ошибка авторизации
+notes - список заметок
+selectedNote - выбранная заметка
+isModalOpen - модалка добавления
+isEditModalOpen - модалка редактирования
+sortBy - сортировка (date_desc, date_asc, title_asc)
+searchQuery - строка поиска
+searchResults - результаты поиска
+tagsStats - статистика тегов
+activeTag - активный тег (фильтр)
+isDeleteConfirm - подтверждение удаления
+pinnedNoteId - ID заметки с анимацией закрепления
+title, content - поля формы добавления
+editTitle, editContent - поля формы редактирования
+
+5.4 ФУНКЦИИ APP
 getHeaders() - Content-Type + Authorization
 getAuthHeader() - только Authorization
 loadNotes() - загрузка с автовыбором последней
 loadTagsStats() - загрузка тегов
+handleMouseMove() - параллакс тегов
+handleTagClick() - фильтр по тегу
 handleTogglePin() - закрепление с анимацией
+handleAuth() - вход/регистрация
+handleLogout() - выход
 handleSearch() - поиск с защитой от ошибок
-handleSubmit() / handleEditSubmit() - создание/обновление
-handleDelete() - удаление с подтверждением
+handleSubmit() - создание
+handleEditClick() - открытие редактирования
+handleEditSubmit() - обновление
+handleDelete() - удаление
 
-6. БАЗА ДАННЫХ
-users: id, username, password_hash, created_at
-notes: id, user_id (FK), title, content (HTML), tags (TEXT[]), is_pinned (BOOLEAN), created_at
+5.5 VITE PROXY
+/api/* -> http://127.0.0.1:3333/*
 
+========================================
+6. БАЗА ДАННЫХ (ДЕТАЛЬНО)
+========================================
+
+6.1 ТАБЛИЦА users
+CREATE TABLE users (
+  id SERIAL PRIMARY KEY,
+  username TEXT UNIQUE NOT NULL,
+  password_hash TEXT NOT NULL,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+Поля:
+id - автоинкремент, первичный ключ
+username - уникальный логин (UNIQUE constraint)
+password_hash - bcrypt хеш (10 раундов)
+created_at - дата регистрации (автоматически)
+
+Индексы:
+PRIMARY KEY (id)
+UNIQUE (username) - автоматически создается
+
+6.2 ТАБЛИЦА notes
+CREATE TABLE notes (
+  id SERIAL PRIMARY KEY,
+  user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+  title TEXT NOT NULL,
+  content TEXT,
+  tags TEXT[] DEFAULT '{}',
+  is_pinned BOOLEAN DEFAULT FALSE,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+Поля:
+id - автоинкремент, первичный ключ
+user_id - внешний ключ на users(id), CASCADE удаление
+title - тема заметки
+content - HTML содержимое (TipTap)
+tags - массив тегов (TEXT[])
+is_pinned - закреплена ли (BOOLEAN)
+created_at - дата создания
+
+Индексы:
+PRIMARY KEY (id)
+FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+Неявный индекс на user_id (создается PostgreSQL автоматически)
+
+6.3 МИГРАЦИИ
+Выполняются в db.js -> initSchema() при каждом старте:
+1. CREATE TABLE IF NOT EXISTS users
+2. CREATE TABLE IF NOT EXISTS notes
+3. ALTER TABLE notes ADD COLUMN IF NOT EXISTS user_id
+4. ALTER TABLE notes ADD COLUMN IF NOT EXISTS is_pinned
+
+========================================
 7. ПОИСК (TYPESENSE)
+========================================
 Коллекция: notes
-Поля: title, content, tags, created_at, user_id, is_pinned
-Фильтр: user_id
-Сортировка: created_at DESC
 
-8. АВТОРИЗАЦИЯ
-JWT, срок 7 дней
-Секрет: super-secret-key-change-me (сменить!)
+Поля:
+- title (string)
+- content (string, HTML)
+- tags (string[], facet)
+- created_at (int64, timestamp)
+- user_id (int64)
+- is_pinned (bool)
 
-9. РЕДАКТОР (TIPTAP)
-Библиотеки: @tiptap/react, starter-kit, code-block-lowlight, lowlight
-Кнопки: B, I, S, H1, H2, списки, код, линия
+Синхронизация через EventBus:
+note:created -> upsertNote
+note:updated -> upsertNote
+note:deleted -> removeNote
 
-10. ДИЗАЙН
-Фон: #1a1a1a (Black 85%)
-Акцент: #E35205 (Pantone 166C)
-Стиль: Glassmorphism, тёмная тема
-Шрифт: Inter
+Поиск:
+GET /search?q=текст
+filter_by: user_id:<id>
+query_by: title, content, tags
+sort_by: created_at:desc
 
-11. ВЗАИМОДЕЙСТВИЕ
-Создание: Frontend -> POST /notes -> notes.js -> DB + EventBus -> search.js -> Typesense
-Обновление: Frontend -> PUT /notes/:id -> notes.js -> DB + EventBus -> search.js -> Typesense
-Закрепление: Frontend -> PATCH /notes/:id/pin -> notes.js -> DB -> EventBus -> search.js
-Удаление: Frontend -> DELETE /notes/:id -> notes.js -> DB + EventBus -> search.js -> Typesense
+========================================
+8. АВТОРИЗАЦИЯ (JWT)
+========================================
+Процесс:
+1. Регистрация: bcrypt.hash(password, 10) -> users
+2. Вход: bcrypt.compare -> JWT
+3. JWT содержит: id, username
+4. Срок: 7 дней
+5. Middleware верифицирует токен
 
+Секрет: super-secret-key-change-me (сменить в production!)
+
+========================================
+9. РЕДАКТОР ТЕКСТА (TIPTAP)
+========================================
+Библиотеки:
+@tiptap/react - React-обертка
+@tiptap/starter-kit - базовые расширения
+@tiptap/extension-code-block-lowlight - блок кода с подсветкой
+lowlight - подсветка синтаксиса
+
+Возможности:
+- Жирный (Bold)
+- Курсив (Italic)
+- Зачеркнутый (Strike)
+- Заголовки H1, H2
+- Маркированный список
+- Нумерованный список
+- Блок кода с подсветкой
+- Горизонтальная линия
+
+Важно:
+StarterKit.configure({ codeBlock: false }) - отключаем стандартный код-блок,
+чтобы использовать CodeBlockLowlight без конфликтов.
+
+Контент хранится как HTML.
+
+========================================
+10. ДИЗАЙН-СИСТЕМА
+========================================
+Цвета:
+--bg-primary: #1a1a1a (Black 85%)
+--bg-secondary: #242424
+--glass-bg: rgba(255,255,255,0.03)
+--glass-border: rgba(255,255,255,0.08)
+--text-primary: #f5f5f5
+--text-secondary: #a3a3a3
+--accent: #E35205 (Pantone 166C)
+--accent-hover: #ff6a1a
+--danger: #ff4d4d
+--success: #4ade80
+
+Шрифт: Inter (Google Fonts)
+
+Стиль:
+Glassmorphism (backdrop-filter: blur)
+Скругления: 12-16px
+Тени: мягкие
+
+Компоненты:
+auth-container, auth-box - экран входа
+app-header, logo - шапка
+search-bar, search-input - поиск
+tag-cloud-container, tag-cloud-item - облако тегов
+sort-bar, sort-btn - сортировка
+notes-list, list-item - список
+note-detail - просмотр
+modal, modal-overlay - модалки
+resize-handle - ручка растягивания
+editor-wrapper, editor-toolbar - редактор
+
+========================================
+11. ВЗАИМОДЕЙСТВИЕ МОДУЛЕЙ
+========================================
+
+Создание заметки:
+Frontend -> POST /notes -> notes.js -> db.query(INSERT) 
+  -> EventBus.emit('note:created') -> search.js upsertNote -> Typesense
+
+Обновление:
+Frontend -> PUT /notes/:id -> notes.js -> db.query(UPDATE)
+  -> EventBus.emit('note:updated') -> search.js upsertNote -> Typesense
+
+Закрепление:
+Frontend -> PATCH /notes/:id/pin -> notes.js -> db.query(UPDATE)
+  -> EventBus.emit('note:updated') -> search.js upsertNote -> Typesense
+
+Удаление:
+Frontend -> DELETE /notes/:id -> notes.js -> db.query(DELETE)
+  -> EventBus.emit('note:deleted') -> search.js removeNote -> Typesense
+
+Поиск:
+Frontend -> GET /search?q= -> search.js -> Typesense.search -> результат
+
+Теги:
+Frontend -> GET /tags/stats -> tags.js -> db.query -> статистика
+
+========================================
 12. API ENDPOINTS
-GET /health
-POST /auth/register
-POST /auth/login
-GET /notes (auth)
-POST /notes (auth)
-PUT /notes/:id (auth)
-DELETE /notes/:id (auth)
-PATCH /notes/:id/pin (auth)
-GET /tags/stats (auth)
-GET /search?q= (auth)
+========================================
+Без авторизации:
+GET /health - проверка жизни
+POST /auth/register - регистрация
+POST /auth/login - вход
 
-13. ЗАПУСК
-docker compose up -d
-cd backend && npm start (порт 3333)
-cd frontend && npm run dev (порт 5173)
+С авторизацией (JWT):
+GET /notes - список заметок
+POST /notes - создание
+PUT /notes/:id - обновление
+DELETE /notes/:id - удаление
+PATCH /notes/:id/pin - закрепление
+GET /tags/stats - статистика тегов
+GET /search?q= - поиск
 
+========================================
+13. ЗАПУСК И РАЗВЕРТЫВАНИЕ
+========================================
+Локально (Raspberry Pi):
+1. docker compose up -d (PostgreSQL + Typesense)
+2. cd backend && npm install && npm start (порт 3333)
+3. cd frontend && npm install && npm run dev (порт 5173)
+
+Проверка:
+curl http://localhost:3333/health
+Браузер: http://localhost:5173
+
+========================================
 14. GIT FLOW
-Feat: / Fix: / Refactor: / Docs:
+========================================
+Формат коммитов:
+Feat: описание - новая функция
+Fix: описание - исправление
+Refactor: описание - переделка
+Docs: описание - документация
 
+========================================
 15. ВОЗМОЖНОСТИ И TODO
-[x] CRUD, [x] Авторизация, [x] Поиск, [x] Теги, [x] Pin, [x] Редактор, [x] Растягивание окон
-TODO: дебаунс поиска, пагинация, шаринг, комментарии, экспорт, бэкапы
+========================================
+[x] CRUD заметок
+[x] Авторизация (JWT)
+[x] Поиск (Typesense)
+[x] Теги с фильтрацией
+[x] WYSIWYG-редактор
+[x] Закрепление (Pin)
+[x] Растягивание окон
+[x] Подтверждение удаления
+[x] Автовыбор последней заметки
 
+TODO:
+[ ] Дебаунс поиска
+[ ] Пагинация
+[ ] Шаринг заметок
+[ ] Комментарии
+[ ] Версионирование
+[ ] Восстановление пароля
+[ ] Экспорт в Markdown/PDF
+[ ] Загрузка файлов
+
+========================================
 16. ИНСТРУКЦИЯ ДЛЯ LLM
-1. Не менять core/ без необходимости
-2. Новые фичи - как модули (backend) или компоненты (frontend)
-3. События для связи модулей
-4. Контент - HTML (TipTap)
-5. Все API (кроме auth) требуют JWT
-6. Тестировать через curl или браузер
-7. Коммитить изменения
+========================================
+Если ты ИИ и работаешь с этим проектом:
+
+1. Прочитай этот файл полностью.
+2. Не меняй core/ без явной необходимости.
+3. Новые фичи добавляй как модули (backend) или компоненты (frontend).
+4. Соблюдай паттерн EventBus для связи модулей.
+5. Помни: заметки привязаны к пользователям (user_id).
+6. Контент заметок хранится как HTML (TipTap).
+7. Теги извлекаются из текста (#тег), но не удаляются из контента.
+8. Поиск синхронизируется через события, не напрямую.
+9. Все API-запросы (кроме auth) требуют JWT.
+10. Проверяй типы данных (parseInt для ID).
+11. Для DELETE-запросов НЕ отправляй Content-Type.
+12. Тестируй через curl или браузер.
+13. Оформляй изменения коммитами.
+14. Если сомневаешься - спрашивай.
