@@ -23,7 +23,8 @@ async function ensureCollection() {
           { name: 'content', type: 'string' },
           { name: 'tags', type: 'string[]', facet: true },
           { name: 'created_at', type: 'int64' },
-          { name: 'user_id', type: 'int64' }
+          { name: 'user_id', type: 'int64' },
+          { name: 'is_pinned', type: 'bool' }
         ],
         default_sorting_field: 'created_at'
       });
@@ -42,7 +43,8 @@ async function upsertNote(note) {
       content: note.content || '',
       tags: note.tags || [],
       created_at: Date.parse(note.created_at),
-      user_id: note.user_id
+      user_id: note.user_id,
+      is_pinned: note.is_pinned || false
     });
   } catch (err) {
     console.error('[Search] Ошибка индексации:', err.message);

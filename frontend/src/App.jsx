@@ -9,9 +9,7 @@ const lowlight = createLowlight(common);
 function NoteEditor({ content, onChange }) {
   const editor = useEditor({
     extensions: [
-      StarterKit.configure({
-        codeBlock: false
-      }),
+      StarterKit.configure({ codeBlock: false }),
       CodeBlockLowlight.configure({ lowlight })
     ],
     content: content || '',
@@ -40,6 +38,67 @@ function NoteEditor({ content, onChange }) {
   );
 }
 
+function ResizableModal({ isOpen, onClose, title, children }) {
+  const [size, setSize] = useState({ width: 600, height: 500 });
+  const startPos = useRef(null);
+  const startSize = useRef(null);
+  const resizeFlag = useRef(false);
+
+  const handleResizeStart = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    resizeFlag.current = true;
+    startPos.current = { x: e.clientX, y: e.clientY };
+    startSize.current = { ...size };
+    
+    const handleMouseMove = (moveEvent) => {
+      const dx = moveEvent.clientX - startPos.current.x;
+      const dy = moveEvent.clientY - startPos.current.y;
+      
+      const newWidth = Math.max(500, Math.min(startSize.current.width + dx, window.innerWidth * 0.95));
+      const newHeight = Math.max(400, Math.min(startSize.current.height + dy, window.innerHeight * 0.9));
+      
+      setSize({ width: newWidth, height: newHeight });
+    };
+    
+    const handleMouseUp = () => {
+      document.removeEventListener('mousemove', handleMouseMove);
+      document.removeEventListener('mouseup', handleMouseUp);
+      setTimeout(() => { resizeFlag.current = false; }, 300);
+    };
+    
+    document.addEventListener('mousemove', handleMouseMove);
+    document.addEventListener('mouseup', handleMouseUp);
+  };
+
+  const handleOverlayMouseDown = (e) => {
+    if (e.target === e.currentTarget && !resizeFlag.current) {
+      onClose();
+    }
+  };
+
+  if (!isOpen) return null;
+
+  return (
+    <div className="modal-overlay" onMouseDown={handleOverlayMouseDown}>
+      <div 
+        className="modal resizable-dynamic" 
+        style={{ width: `${size.width}px`, height: `${size.height}px` }}
+      >
+        <div className="modal-header">
+          <h3>{title}</h3>
+          <button className="btn-close" onClick={onClose}>✕</button>
+        </div>
+        {children}
+        <div 
+          className="resize-handle" 
+          onMouseDown={handleResizeStart}
+        />
+      </div>
+    </div>
+  );
+}
+
 function App() {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [authMode, setAuthMode] = useState('login');
@@ -57,6 +116,7 @@ function App() {
   const [tagsStats, setTagsStats] = useState([]);
   const [activeTag, setActiveTag] = useState(null);
   const [isDeleteConfirm, setIsDeleteConfirm] = useState(false);
+  const [pinnedNoteId, setPinnedNoteId] = useState(null);
   
   const [title, setTitle] = useState('');
   const [content, setContent] = useState('');
@@ -146,6 +206,18 @@ function App() {
       setSearchQuery('');
       setSearchResults([]);
     }
+  };
+
+  const handleTogglePin = async (id) => {
+    await fetch(`${API_BASE}/notes/${id}/pin`, { 
+      method: 'PATCH', 
+      headers: getAuthHeader()
+    });
+    
+    setPinnedNoteId(id);
+    setTimeout(() => setPinnedNoteId(null), 800);
+    
+    loadNotes();
   };
 
   const handleAuth = async (e) => {
@@ -321,6 +393,8 @@ function App() {
 
   const displayedNotes = searchQuery.length > 0 ? searchResults : filteredNotes;
   const sortedNotes = [...displayedNotes].sort((a, b) => {
+    if (a.is_pinned && !b.is_pinned) return -1;
+    if (!a.is_pinned && b.is_pinned) return 1;
     if (sortBy === 'date_asc') return new Date(a.created_at) - new Date(b.created_at);
     if (sortBy === 'title_asc') return a.title.localeCompare(b.title, 'ru');
     return new Date(b.created_at) - new Date(a.created_at);
@@ -395,11 +469,14 @@ function App() {
             sortedNotes.map(note => (
               <div 
                 key={note.id} 
-                className={`list-item ${selectedNote?.id === note.id ? 'selected' : ''}`}
+                className={`list-item ${selectedNote?.id === note.id ? 'selected' : ''} ${pinnedNoteId === note.id ? 'pinned-animate' : ''}`}
                 onClick={() => setSelectedNote(note)}
               >
                 <div className="list-item-header">
-                  <span className="list-item-title">{note.title}</span>
+                  <span className="list-item-title">
+                    {note.is_pinned && <span className="pin-indicator">📌</span>}
+                    {note.title}
+                  </span>
                   <span className="list-item-date">{new Date(note.created_at).toLocaleDateString('ru-RU')}</span>
                 </div>
                 <div className="list-item-tags">
@@ -418,6 +495,14 @@ function App() {
               <div className="note-detail-header">
                 <h2>{selectedNote.title}</h2>
                 <div className="note-actions">
+                  <button 
+                    className="btn-pin" 
+                    onClick={() => handleTogglePin(selectedNote.id)}
+                    title={selectedNote.is_pinned ? 'Открепить' : 'Закрепить'}
+                    style={{ opacity: selectedNote.is_pinned ? 1 : 0.5 }}
+                  >
+                    📌
+                  </button>
                   <button className="btn-edit" onClick={handleEditClick}>✎</button>
                   <button className="btn-delete" onClick={() => setIsDeleteConfirm(true)}>✕</button>
                 </div>
@@ -438,55 +523,41 @@ function App() {
         </div>
       </div>
 
-      {isModalOpen && (
-        <div className="modal-overlay" onClick={() => setIsModalOpen(false)}>
-          <div className="modal wide-modal" onClick={(e) => e.stopPropagation()}>
-            <div className="modal-header">
-              <h3>Новая заметка</h3>
-              <button className="btn-close" onClick={() => setIsModalOpen(false)}>✕</button>
-            </div>
-            <form onSubmit={handleSubmit}>
-              <input
-                className="input-title"
-                placeholder="Тема заметки"
-                value={title}
-                onChange={(e) => setTitle(e.target.value)}
-                required
-                autoFocus
-              />
-              <NoteEditor content="" onChange={setContent} />
-              <button type="submit" className="btn-primary btn-block">Сохранить</button>
-            </form>
-          </div>
-        </div>
-      )}
+      <ResizableModal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} title="Новая заметка">
+        <form onSubmit={handleSubmit}>
+          <input
+            className="input-title"
+            placeholder="Тема заметки"
+            value={title}
+            onChange={(e) => setTitle(e.target.value)}
+            required
+            autoFocus
+          />
+          <NoteEditor content="" onChange={setContent} />
+          <button type="submit" className="btn-primary btn-block">Сохранить</button>
+        </form>
+      </ResizableModal>
 
-      {isEditModalOpen && (
-        <div className="modal-overlay" onClick={() => setIsEditModalOpen(false)}>
-          <div className="modal wide-modal" onClick={(e) => e.stopPropagation()}>
-            <div className="modal-header">
-              <h3>Редактирование</h3>
-              <button className="btn-close" onClick={() => setIsEditModalOpen(false)}>✕</button>
-            </div>
-            <form onSubmit={handleEditSubmit}>
-              <input
-                className="input-title"
-                placeholder="Тема"
-                value={editTitle}
-                onChange={(e) => setEditTitle(e.target.value)}
-                required
-                autoFocus
-              />
-              <NoteEditor content={editContent} onChange={setEditContent} />
-              <button type="submit" className="btn-primary btn-block">Сохранить</button>
-            </form>
-          </div>
-        </div>
-      )}
+      <ResizableModal isOpen={isEditModalOpen} onClose={() => setIsEditModalOpen(false)} title="Редактирование">
+        <form onSubmit={handleEditSubmit}>
+          <input
+            className="input-title"
+            placeholder="Тема"
+            value={editTitle}
+            onChange={(e) => setEditTitle(e.target.value)}
+            required
+            autoFocus
+          />
+          <NoteEditor content={editContent} onChange={setEditContent} />
+          <button type="submit" className="btn-primary btn-block">Сохранить</button>
+        </form>
+      </ResizableModal>
 
       {isDeleteConfirm && (
-        <div className="modal-overlay" onClick={() => setIsDeleteConfirm(false)}>
-          <div className="modal" onClick={(e) => e.stopPropagation()}>
+        <div className="modal-overlay" onClick={(e) => {
+          if (e.target === e.currentTarget) setIsDeleteConfirm(false);
+        }}>
+          <div className="modal">
             <div className="modal-header">
               <h3>Подтверждение</h3>
               <button className="btn-close" onClick={() => setIsDeleteConfirm(false)}>✕</button>

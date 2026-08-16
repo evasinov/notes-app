@@ -646,3 +646,170 @@ body {
   font-family: 'Courier New', monospace;
   color: var(--accent);
 }
+
+/* ==== ЗАКРЕПЛЕНИЕ (PIN) ==== */
+.pin-indicator {
+  margin-right: 6px;
+  font-size: 14px;
+}
+
+.btn-pin {
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  font-size: 16px;
+  padding: 4px 8px;
+  border-radius: 6px;
+  transition: all 0.2s;
+  opacity: 0.5;
+}
+
+.btn-pin:hover {
+  opacity: 1;
+  background: rgba(227, 82, 5, 0.1);
+}
+
+/* ==== АНИМАЦИЯ ЗАКРЕПЛЕНИЯ ==== */
+@keyframes slideUp {
+  0% {
+    transform: translateY(0);
+    opacity: 1;
+  }
+  50% {
+    transform: translateY(-20px);
+    opacity: 0.5;
+    background: rgba(227, 82, 5, 0.3);
+    border-color: var(--accent);
+  }
+  100% {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+@keyframes pinGlow {
+  0% {
+    box-shadow: 0 0 0 0 rgba(227, 82, 5, 0.6);
+  }
+  100% {
+    box-shadow: 0 0 0 20px rgba(227, 82, 5, 0);
+  }
+}
+
+.list-item.pinned-animate {
+  animation: slideUp 0.6s ease forwards, pinGlow 0.8s ease forwards;
+}
+
+/* Плавное появление при загрузке */
+.list-item {
+  animation: fadeIn 0.3s ease;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateX(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+/* ==== РАСТЯГИВАЕМЫЕ МОДАЛКИ ==== */
+.modal.resizable {
+  resize: both;
+  overflow: auto;
+  min-width: 400px;
+  min-height: 300px;
+  max-width: 90vw;
+  max-height: 90vh;
+}
+
+.wide-modal.resizable {
+  resize: both;
+  overflow: auto;
+  min-width: 500px;
+  min-height: 400px;
+  max-width: 95vw;
+  max-height: 95vh;
+}
+
+/* ==== КАСТОМНАЯ РУЧКА РАСТЯГИВАНИЯ ==== */
+.resize-handle {
+  position: absolute;
+  bottom: 0;
+  right: 0;
+  width: 20px;
+  height: 20px;
+  cursor: nwse-resize;
+  z-index: 10;
+}
+
+.resize-handle::after {
+  content: '';
+  position: absolute;
+  bottom: 3px;
+  right: 3px;
+  width: 10px;
+  height: 10px;
+  border-right: 2px solid var(--text-secondary);
+  border-bottom: 2px solid var(--text-secondary);
+  border-bottom-right-radius: 3px;
+}
+
+.modal.resizable-dynamic {
+  position: relative;
+  resize: none;
+  overflow: visible;
+  min-width: 400px;
+  min-height: 300px;
+}
+
+.wide-modal.resizable-dynamic {
+  position: relative;
+  resize: none;
+  overflow: visible;
+  min-width: 500px;
+  min-height: 400px;
+}
+
+/* ==== РАСТЯГИВАНИЕ СОДЕРЖИМОГО МОДАЛКИ ==== */
+.modal.resizable-dynamic {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.modal.resizable-dynamic .modal-header {
+  flex-shrink: 0;
+}
+
+.modal.resizable-dynamic form {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.modal.resizable-dynamic .input-title {
+  flex-shrink: 0;
+}
+
+.modal.resizable-dynamic .editor-wrapper {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  margin-bottom: 8px;
+}
+
+.modal.resizable-dynamic .editor-content {
+  flex: 1;
+  overflow-y: auto;
+  max-height: none;
+}
+
+.modal.resizable-dynamic .btn-block {
+  flex-shrink: 0;
+}
