@@ -911,3 +911,79 @@ body {
   overflow: hidden;
   border-radius: 12px;
 }
+
+/* ==== СКРОЛЛБАР В ТЕМУ ==== */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: rgba(255, 255, 255, 0.03);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(227, 82, 5, 0.4);
+  border-radius: 4px;
+  transition: background 0.2s;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(227, 82, 5, 0.7);
+}
+
+/* Firefox */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(227, 82, 5, 0.4) rgba(255, 255, 255, 0.03);
+}
+
+/* ==== ФИЛЬТР ПО ДАТЕ ==== */
+.date-filter-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 16px;
+  flex-wrap: wrap;
+}
+
+/* ==== ВЫРАВНИВАНИЕ СКРОЛЛБАРА СПИСКА ==== */
+.notes-list {
+  padding-right: 16px; /* Отступ справа, чтобы скроллбар был между колонками */
+  margin-right: -8px; /* Компенсация для визуального центрирования */
+}
+
+/* ==== ПОДСКАЗКИ ТЕГОВ ==== */
+.tag-suggestion-popup {
+  position: absolute;
+  background: #1e1e1e;
+  border: 1px solid var(--glass-border);
+  border-radius: 12px;
+  padding: 8px;
+  z-index: 9999;
+  max-height: 200px;
+  overflow-y: auto;
+  min-width: 150px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
+}
+
+.tag-suggestion-item {
+  padding: 8px 12px;
+  border-radius: 8px;
+  cursor: pointer;
+  color: var(--text-primary);
+  font-size: 14px;
+  transition: background 0.1s;
+}
+
+.tag-suggestion-item:hover,
+.tag-suggestion-item.selected {
+  background: rgba(227, 82, 5, 0.2);
+  color: var(--accent);
+}
+
+.mention-tag {
+  color: var(--accent);
+  font-weight: 500;
+}

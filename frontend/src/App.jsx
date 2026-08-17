@@ -2,21 +2,100 @@ import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useEditor, EditorContent } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
 import CodeBlockLowlight from '@tiptap/extension-code-block-lowlight';
+import Mention from '@tiptap/extension-mention';
 import { common, createLowlight } from 'lowlight';
 import ForceGraph2D from 'react-force-graph-2d';
+import { PluginKey } from '@tiptap/pm/state';
 
 const lowlight = createLowlight(common);
 
-function NoteEditor({ content, onChange }) {
+// Плагин для подсказок тегов
+const TagSuggestion = Mention.extend({
+  name: 'tagSuggestion',
+}).configure({
+  suggestion: {
+    char: '#',
+    pluginKey: new PluginKey('tagSuggestion'),
+    items: ({ query }) => {
+      // Возвращаем теги (будем передавать через пропсы)
+      return [];
+    },
+  },
+});
+
+function NoteEditor({ content, onChange, availableTags }) {
   const editor = useEditor({
     extensions: [
       StarterKit.configure({ codeBlock: false }),
-      CodeBlockLowlight.configure({ lowlight })
+      CodeBlockLowlight.configure({ lowlight }),
+      Mention.configure({
+        HTMLAttributes: { class: 'mention-tag' },
+        suggestion: {
+          char: '#',
+          pluginKey: new PluginKey('tagSuggestion'),
+          items: ({ query }) => {
+            const filtered = (availableTags || [])
+              .filter(tag => tag.toLowerCase().startsWith(query.toLowerCase()))
+              .slice(0, 10);
+            return filtered;
+          },
+          render: () => {
+            let popup;
+            return {
+              onStart: (props) => {
+                popup = document.createElement('div');
+                popup.className = 'tag-suggestion-popup';
+                popup.style.position = 'fixed';
+                document.body.appendChild(popup);
+                renderPopup(props);
+              },
+              onUpdate: (props) => {
+                if (props.clientRect) {
+                  const rect = props.clientRect();
+                  popup.style.left = rect.left + 'px';
+                  popup.style.top = (rect.bottom + 5) + 'px';
+                }
+                renderPopup(props);
+              },
+              onKeyDown: (props) => {
+                if (props.event.key === 'Escape') {
+                  popup.remove();
+                  return true;
+                }
+                return false;
+              },
+              onExit: () => {
+                if (popup) popup.remove();
+              },
+            };
+
+            function renderPopup(props) {
+              if (!popup) return;
+              if (props.items.length === 0) {
+                popup.style.display = 'none';
+                return;
+              }
+              popup.style.display = 'block';
+              popup.innerHTML = '';
+              
+              props.items.forEach((item, index) => {
+                const div = document.createElement('div');
+                div.className = `tag-suggestion-item ${index === props.selectedIndex ? 'selected' : ''}`;
+                div.textContent = `#${item}`;
+                div.addEventListener('click', () => {
+                  props.command({ id: item });
+                });
+                popup.appendChild(div);
+              });
+            }
+          },
+        },
+      }),
     ],
     content: content || '',
     onUpdate: ({ editor }) => {
       onChange(editor.getHTML());
-    }
+    },
   });
 
   if (!editor) return null;
@@ -100,7 +179,6 @@ function ResizableModal({ isOpen, onClose, title, children }) {
 function GraphModal({ isOpen, onClose, graphData }) {
   if (!isOpen) return null;
 
-  // Преобразуем данные для react-force-graph
   const formattedData = {
     nodes: (graphData.nodes || []).map(n => ({
       id: String(n.id),
@@ -138,14 +216,12 @@ function GraphModal({ isOpen, onClose, graphData }) {
             width={800}
             height={600}
             nodeCanvasObject={(node, ctx, globalScale) => {
-              // Рисуем точку
               const size = 4;
               ctx.beginPath();
               ctx.arc(node.x, node.y, size, 0, 2 * Math.PI);
               ctx.fillStyle = '#E35205';
               ctx.fill();
               
-              // Рисуем подпись
               const label = node.title || '';
               const fontSize = 11 / globalScale;
               ctx.font = `500 ${fontSize}px Inter, -apple-system, sans-serif`;
@@ -181,6 +257,7 @@ function App() {
   const [pinnedNoteId, setPinnedNoteId] = useState(null);
   const [isGraphOpen, setIsGraphOpen] = useState(false);
   const [graphData, setGraphData] = useState({ nodes: [], links: [] });
+  const [dateFilter, setDateFilter] = useState('all');
   
   const [title, setTitle] = useState('');
   const [content, setContent] = useState('');
@@ -223,7 +300,6 @@ function App() {
       const loadedNotes = json.data || [];
       setNotes(loadedNotes);
       
-      // Автовыбор только если еще нет выбранной заметки
       setSelectedNote(prev => {
         if (prev && loadedNotes.find(n => n.id === prev.id)) {
           return prev;
@@ -417,12 +493,10 @@ function App() {
     
     setIsEditModalOpen(false);
     
-    // Сохраняем обновленную заметку как выбранную
     if (json.data) {
       setSelectedNote(json.data);
     }
     
-    // Перезагружаем список, но НЕ сбрасываем selectedNote
     const token = localStorage.getItem('token');
     const notesRes = await fetch(`${API_BASE}/notes`, { 
       headers: { 'Authorization': `Bearer ${token}` } 
@@ -494,9 +568,38 @@ function App() {
     );
   }
 
-  const filteredNotes = activeTag
-    ? notes.filter(note => note.tags?.includes(activeTag))
-    : notes;
+  const filterByDate = (notesList) => {
+    const now = new Date();
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const yesterday = new Date(today);
+    yesterday.setDate(yesterday.getDate() - 1);
+    const weekAgo = new Date(today);
+    weekAgo.setDate(weekAgo.getDate() - 7);
+    const monthAgo = new Date(today);
+    monthAgo.setMonth(monthAgo.getMonth() - 1);
+
+    switch (dateFilter) {
+      case 'today':
+        return notesList.filter(n => new Date(n.created_at) >= today);
+      case 'yesterday':
+        return notesList.filter(n => {
+          const d = new Date(n.created_at);
+          return d >= yesterday && d < today;
+        });
+      case 'week':
+        return notesList.filter(n => new Date(n.created_at) >= weekAgo);
+      case 'month':
+        return notesList.filter(n => new Date(n.created_at) >= monthAgo);
+      default:
+        return notesList;
+    }
+  };
+
+  const filteredNotes = filterByDate(
+    activeTag
+      ? notes.filter(note => note.tags?.includes(activeTag))
+      : notes
+  );
 
   const displayedNotes = searchQuery.length > 0 ? searchResults : filteredNotes;
   const sortedNotes = [...displayedNotes].sort((a, b) => {
@@ -508,6 +611,7 @@ function App() {
   });
 
   const maxTagCount = Math.max(...tagsStats.map(t => t.count), 1);
+  const availableTags = tagsStats.map(t => t.tag);
 
   return (
     <div className="app-shell">
@@ -568,6 +672,15 @@ function App() {
         <button className={sortBy === 'date_desc' ? 'sort-btn active' : 'sort-btn'} onClick={() => setSortBy('date_desc')}>Сначала новые</button>
         <button className={sortBy === 'date_asc' ? 'sort-btn active' : 'sort-btn'} onClick={() => setSortBy('date_asc')}>Сначала старые</button>
         <button className={sortBy === 'title_asc' ? 'sort-btn active' : 'sort-btn'} onClick={() => setSortBy('title_asc')}>По алфавиту</button>
+      </div>
+
+      <div className="date-filter-bar">
+        <span className="sort-label">Период:</span>
+        <button className={dateFilter === 'all' ? 'sort-btn active' : 'sort-btn'} onClick={() => setDateFilter('all')}>Все</button>
+        <button className={dateFilter === 'today' ? 'sort-btn active' : 'sort-btn'} onClick={() => setDateFilter('today')}>Сегодня</button>
+        <button className={dateFilter === 'yesterday' ? 'sort-btn active' : 'sort-btn'} onClick={() => setDateFilter('yesterday')}>Вчера</button>
+        <button className={dateFilter === 'week' ? 'sort-btn active' : 'sort-btn'} onClick={() => setDateFilter('week')}>Неделя</button>
+        <button className={dateFilter === 'month' ? 'sort-btn active' : 'sort-btn'} onClick={() => setDateFilter('month')}>Месяц</button>
       </div>
 
       <div className="main-layout">
@@ -644,7 +757,7 @@ function App() {
             required
             autoFocus
           />
-          <NoteEditor content="" onChange={setContent} />
+          <NoteEditor content="" onChange={setContent} availableTags={availableTags} />
           <button type="submit" className="btn-primary btn-block">Сохранить</button>
         </form>
       </ResizableModal>
@@ -659,7 +772,7 @@ function App() {
             required
             autoFocus
           />
-          <NoteEditor content={editContent} onChange={setEditContent} />
+          <NoteEditor content={editContent} onChange={setEditContent} availableTags={availableTags} />
           <button type="submit" className="btn-primary btn-block">Сохранить</button>
         </form>
       </ResizableModal>
