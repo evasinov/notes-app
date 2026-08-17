@@ -583,3 +583,89 @@ GET /notes/graph - данные для графа
 - Список обновляется
 - Фокус остается на редактируемой заметке
 
+
+========================================
+18. ПОДСКАЗКИ ТЕГОВ (TAG SUGGESTIONS)
+========================================
+Реализованы через TipTap Mention extension.
+
+Библиотеки:
+- @tiptap/extension-mention
+- @tiptap/suggestion
+
+Как работает:
+1. Пользователь вводит # в редакторе
+2. Появляется выпадающий список с существующими тегами
+3. Список фильтруется при вводе
+4. Клик по тегу - вставка
+
+Позиционирование:
+- popup.position = fixed
+- Привязан к clientRect (позиция курсора)
+
+Стили:
+- .tag-suggestion-popup - контейнер
+- .tag-suggestion-item - элемент списка
+- .tag-suggestion-item.selected - выбранный элемент
+
+========================================
+19. ФИЛЬТР ПО ДАТЕ
+========================================
+Кнопки: Все, Сегодня, Вчера, Неделя, Месяц
+
+Реализация:
+- dateFilter state в App.jsx
+- filterByDate() функция
+- Сравнение created_at с текущей датой
+
+Логика:
+today: created_at >= начало сегодняшнего дня
+yesterday: created_at >= вчера И < сегодня
+week: created_at >= 7 дней назад
+month: created_at >= 1 месяц назад
+
+========================================
+20. СКРОЛЛБАРЫ В ТЕМУ
+========================================
+Webkit (Chrome, Edge, Safari):
+::-webkit-scrollbar - ширина 8px
+::-webkit-scrollbar-track - фон rgba(255,255,255,0.03)
+::-webkit-scrollbar-thumb - оранжевый rgba(227,82,5,0.4)
+
+Firefox:
+scrollbar-width: thin
+scrollbar-color: rgba(227,82,5,0.4) rgba(255,255,255,0.03)
+
+========================================
+21. АКТУАЛЬНАЯ СТРУКТУРА APP.JSX
+========================================
+Компоненты:
+- NoteEditor (TipTap + Mention)
+- ResizableModal (растягиваемые модалки)
+- GraphModal (граф связей)
+- App (главный)
+
+Состояния App:
+- isLoggedIn, authMode, username, password, authError
+- notes, selectedNote
+- isModalOpen, isEditModalOpen, isDeleteConfirm
+- sortBy, searchQuery, searchResults
+- tagsStats, activeTag
+- pinnedNoteId
+- isGraphOpen, graphData
+- dateFilter
+- title, content, editTitle, editContent
+
+Функции:
+- getHeaders(), getAuthHeader()
+- loadNotes(), loadTagsStats(), loadGraphData()
+- handleMouseMove(), handleTagClick()
+- handleTogglePin(), handleAuth(), handleLogout()
+- handleSearchChange() (debounce 500ms)
+- handleSubmit(), handleEditClick(), handleEditSubmit()
+- handleDelete()
+- filterByDate()
+
+Дополнительно:
+- availableTags = tagsStats.map(t => t.tag) - для подсказок
+- maxTagCount - для размера тегов в облаке
