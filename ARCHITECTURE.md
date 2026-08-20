@@ -669,3 +669,49 @@ scrollbar-color: rgba(227,82,5,0.4) rgba(255,255,255,0.03)
 Дополнительно:
 - availableTags = tagsStats.map(t => t.tag) - для подсказок
 - maxTagCount - для размера тегов в облаке
+
+========================================
+22. UI ОПТИМИЗАЦИИ (v0.7.5)
+========================================
+
+22.1 ПРЕВЬЮ ЗАМЕТОК В СПИСКЕ
+В карточке заметки отображается краткое содержание:
+- HTML-теги удаляются через replace(/<[^>]*>/g, ' ')
+- &nbsp; заменяется на пробел
+- Обрезается с троеточием (text-overflow: ellipsis)
+
+22.2 КНОПКИ ДЕЙСТВИЙ
+Вынесены из note-detail-header в отдельную панель:
+- .note-detail-actions-bar (выравнивание по правому краю)
+- Разделитель border-bottom
+- Компактные размеры (padding: 2px 6px, font-size: 14px)
+
+22.3 ОБРЕЗКА ДЛИННЫХ ЗАГОЛОВКОВ
+В списке (list-item-title):
+- white-space: nowrap
+- overflow: hidden
+- text-overflow: ellipsis
+
+В графе (GraphModal):
+- Максимум 25 символов
+- Обрезка с троеточием
+
+22.4 ОТСТУПЫ СПИСКОВ
+Редактор (.ProseMirror) и просмотр (.note-detail-content):
+- padding-left: 24px
+- line-height: 1.6
+- margin: 8px 0
+
+22.5 СКРОЛЛБАРЫ
+Кастомные скроллбары в тему:
+- Webkit: width 8px, оранжевый rgba(227,82,5,0.4)
+- Firefox: scrollbar-width thin
+
+22.6 ФИЛЬТР ПО ДАТЕ
+Кнопки: Все, Сегодня, Вчера, Неделя, Месяц
+Функция filterByDate() в App.jsx
+
+22.7 ПОДСКАЗКИ ТЕГОВ
+TipTap Mention extension
+При вводе # показывает список существующих тегов
+Позиционирование: fixed, привязан к clientRect
