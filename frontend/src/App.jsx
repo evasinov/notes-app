@@ -222,7 +222,13 @@ function GraphModal({ isOpen, onClose, graphData }) {
               ctx.fillStyle = '#E35205';
               ctx.fill();
               
-              const label = node.title || '';
+              // Обрезаем длинные названия
+              let label = node.title || '';
+              const maxLength = 25;
+              if (label.length > maxLength) {
+                label = label.substring(0, maxLength) + '...';
+              }
+              
               const fontSize = 11 / globalScale;
               ctx.font = `500 ${fontSize}px Inter, -apple-system, sans-serif`;
               ctx.textAlign = 'center';
@@ -703,6 +709,9 @@ function App() {
                   </span>
                   <span className="list-item-date">{new Date(note.created_at).toLocaleDateString('ru-RU')}</span>
                 </div>
+                <div className="list-item-preview">
+                  {note.content ? note.content.replace(/<[^>]*>/g, ' ').replace(/&nbsp;/g, ' ').trim() : 'Нет содержимого'}
+                </div>
                 <div className="list-item-tags">
                   {note.tags?.slice(0, 3).map(tag => (
                     <span key={tag} className="tag-mini">#{tag}</span>
@@ -716,21 +725,19 @@ function App() {
         <div className="note-detail">
           {selectedNote ? (
             <>
-              <div className="note-detail-header">
-                <h2>{selectedNote.title}</h2>
-                <div className="note-actions">
-                  <button 
-                    className="btn-pin" 
-                    onClick={() => handleTogglePin(selectedNote.id)}
-                    title={selectedNote.is_pinned ? 'Открепить' : 'Закрепить'}
-                    style={{ opacity: selectedNote.is_pinned ? 1 : 0.5 }}
-                  >
-                    📌
-                  </button>
-                  <button className="btn-edit" onClick={handleEditClick}>✎</button>
-                  <button className="btn-delete" onClick={() => setIsDeleteConfirm(true)}>✕</button>
-                </div>
+              <div className="note-detail-actions-bar">
+                <button 
+                  className="btn-pin" 
+                  onClick={() => handleTogglePin(selectedNote.id)}
+                  title={selectedNote.is_pinned ? 'Открепить' : 'Закрепить'}
+                  style={{ opacity: selectedNote.is_pinned ? 1 : 0.5 }}
+                >
+                  📌
+                </button>
+                <button className="btn-edit" onClick={handleEditClick}>✎</button>
+                <button className="btn-delete" onClick={() => setIsDeleteConfirm(true)}>✕</button>
               </div>
+              <h2 className="note-detail-title">{selectedNote.title}</h2>
               <div className="note-detail-date">
                 Создано: {new Date(selectedNote.created_at).toLocaleString('ru-RU')}
               </div>
